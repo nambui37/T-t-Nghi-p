@@ -1,0 +1,27 @@
+version: "3.8"
+
+services:
+  db:
+    image: mysql:8
+    container_name: duan_mysql   # 🔥 đổi tên riêng
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: mydb
+    ports:
+      - "3308:3306"   # 🔥 đổi port (tránh 3307)
+    volumes:
+      - doan_db_data:/var/lib/mysql   # 🔥 volume riêng
+      - ./backend/data:/docker-entrypoint-initdb.d
+
+  adminer:
+    image: adminer
+    container_name: duan_adminer   # 🔥 đổi tên riêng
+    restart: always
+    ports:
+      - "8090:8080"   # 🔥 đổi port (tránh 8086, 8087)
+    depends_on:
+      - db
+
+volumes:
+  doan_db_data:   # 🔥 tên riêng luôn
