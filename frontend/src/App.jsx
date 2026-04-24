@@ -1,14 +1,14 @@
-import { useState } from "react";
-
 import "./App.css";
 
 function App() {
-  const [count, setCount] = useState(0);
-
   return (
-    <>
-      <h1>Vite + React</h1>
-    </>
+    <div className="homepage">
+      <div className="card">
+        <h1 className="name">Nguyễn Anh Tuấn</h1>
+        <h2 className="mssv">MSSV: PD11305</h2>
+        <p className="tagline">✨ Anh Tuấn đẹp trai Top 1 Dự Án Tốt Nghiệp ✨</p>
+      </div>
+    </div>
   );
 }
 
