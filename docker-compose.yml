@@ -1,27 +1,54 @@
-version: "3.8"
-
 services:
-  db:
-    image: mysql:8
-    container_name: duan_mysql   # 🔥 đổi tên riêng
+  mysql-db:
+    image: mysql:8.0
+    container_name: mom_baby_db
     restart: always
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: 123456
       MYSQL_DATABASE: mydb
     ports:
-      - "3308:3306"   # 🔥 đổi port (tránh 3307)
+      - "3308:3306"
     volumes:
-      - doan_db_data:/var/lib/mysql   # 🔥 volume riêng
+      - db_data:/var/lib/mysql
       - ./backend/data:/docker-entrypoint-initdb.d
+    networks:
+      - mom_baby_network
+
+  backend:
+    build: ./backend
+    container_name: mom_baby_backend
+    restart: always
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./backend/.env
+    environment:
+      DB_HOST: mysql-db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: 123456
+      DB_NAME: mydb
+      NODE_ENV: development
+    depends_on:
+      - mysql-db
+    networks:
+      - mom_baby_network
 
   adminer:
     image: adminer
-    container_name: duan_adminer   # 🔥 đổi tên riêng
+    container_name: mom_baby_adminer
     restart: always
     ports:
-      - "8090:8080"   # 🔥 đổi port (tránh 8086, 8087)
+      - "8081:8080"
     depends_on:
-      - db
+      - mysql-db
+    networks:
+      - mom_baby_network
+
+networks:
+  mom_baby_network:
+    driver: bridge
 
 volumes:
-  doan_db_data:   # 🔥 tên riêng luôn
+  db_data:

@@ -1,98 +1,132 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { serviceAPI } from "../../services/apiClient";
 
 const Packages = () => {
-  // Mock data mô phỏng bảng goi_dich_vu kết hợp chi_tiet_goi
-  const packages = [
-    {
-      id: 1,
-      title: "Gói Cơ Bản Phục Hồi",
-      price: "3.500.000đ",
-      totalSessions: 15,
-      isHot: false,
-      features: [
-        { name: "Tắm bé & Vệ sinh rốn", count: 10 },
-        { name: "Massage thư giãn mẹ", count: 5 },
-        { name: "Vệ sinh vết mổ/khâu", count: "Mỗi buổi" },
-        { name: "Tư vấn kích sữa", count: "Miễn phí" },
-      ],
-      bgColor: "bg-white",
-      textColor: "text-gray-900",
-      btnColor: "bg-pink-100 text-pink-600 hover:bg-pink-500 hover:text-white",
-    },
-    {
-      id: 2,
-      title: "Gói Vip Toàn Diện 1 Tháng",
-      price: "8.900.000đ",
-      totalSessions: 45,
-      isHot: true,
-      features: [
-        { name: "Tắm bé chuẩn Y khoa", count: 30 },
-        { name: "Phục hồi mẹ sau sinh VIP", count: 15 },
-        { name: "Xông hơi thảo dược toàn thân", count: 5 },
-        { name: "Gội đầu dưỡng sinh thảo dược", count: 5 },
-        { name: "Hỗ trợ thông tắc tia sữa", count: "Bất cứ lúc nào" },
-      ],
-      bgColor: "bg-pink-500",
-      textColor: "text-white",
-      btnColor: "bg-white text-pink-500 hover:bg-gray-50",
-    },
-  ];
+  const [packages, setPackages] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPackages();
+  }, []);
+
+  const fetchPackages = async () => {
+    try {
+      setIsLoading(true);
+      const response = await serviceAPI.getAll();
+      if (response?.data?.success) {
+        // Lọc lấy các dịch vụ là Gói (loai_id = 1)
+        const allServices = response.data.data;
+        const pkgs = allServices.filter((s) => s.loai_id === 1);
+        setPackages(pkgs);
+      }
+    } catch (error) {
+      console.error("Lỗi khi tải gói dịch vụ:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="bg-white">
+    <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h1 className="text-4xl font-bold text-center text-pink-500 mb-6">
-          Gói Dịch Vụ Nổi Bật
-        </h1>
-        <p className="text-lg text-center text-gray-600 mb-12">
-          Tiết kiệm hơn với các gói combo chăm sóc toàn diện trong tháng ở cữ.
-        </p>
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 mb-4">
+            Gói Dịch Vụ <span className="text-pink-500">Toàn Diện</span>
+          </h1>
+          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            Tiết kiệm đến 30% khi đăng ký các gói chăm sóc dài hạn. Lộ trình
+            chuẩn y khoa giúp mẹ phục hồi và bé phát triển vượt trội.
+          </p>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-10 max-w-5xl mx-auto">
-          {packages.map((pkg) => (
-            <div
-              key={pkg.id}
-              className={`${pkg.bgColor} ${pkg.textColor} rounded-3xl shadow-xl border border-gray-100 p-10 relative transition-transform hover:-translate-y-2`}
-            >
-              {pkg.isHot && (
-                <div className="absolute -top-4 right-8 bg-yellow-400 text-yellow-900 text-sm font-black px-4 py-1.5 rounded-full shadow-md uppercase tracking-wider">
-                  Được Mua Nhiều Nhất
-                </div>
-              )}
-              <h3 className="text-2xl font-bold mb-2">{pkg.title}</h3>
-              <div className="flex items-baseline mb-6">
-                <span
-                  className={`text-4xl font-extrabold ${pkg.isHot ? "text-white" : "text-pink-500"}`}
-                >
-                  {pkg.price}
-                </span>
-              </div>
+        {isLoading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {packages.map((pkg) => (
               <div
-                className={`text-sm font-bold uppercase tracking-wider mb-6 ${pkg.isHot ? "text-pink-100" : "text-gray-400"}`}
+                key={pkg.id}
+                className="bg-white rounded-4xl shadow-xl border border-gray-100 overflow-hidden flex flex-col transition-all hover:shadow-2xl hover:-translate-y-2 group"
               >
-                Tổng số buổi: {pkg.totalSessions}
-              </div>
-              <ul className="space-y-4 mb-10">
-                {pkg.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <span className="mr-3 text-lg">✔️</span>
-                    <span>
-                      <strong className="font-semibold">{feature.count}</strong>{" "}
-                      {typeof feature.count === "number" ? "buổi " : ""}
-                      {feature.name}
+                {/* Header Gói */}
+                <div className="p-8 pb-0">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="w-14 h-14 bg-pink-50 text-pink-500 rounded-2xl flex items-center justify-center text-3xl group-hover:scale-110 transition-transform">
+                      🌸
+                    </div>
+                    {pkg.gia > 10000000 && (
+                      <span className="bg-yellow-400 text-yellow-900 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-sm">
+                        Phổ biến nhất
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-2xl font-black text-gray-900 mb-2 leading-tight">
+                    {pkg.name}
+                  </h3>
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-3xl font-black text-pink-500">
+                      {new Intl.NumberFormat("vi-VN").format(pkg.gia)}đ
                     </span>
-                  </li>
-                ))}
-              </ul>
+                    <span className="text-gray-400 text-sm font-medium">
+                      / trọn gói
+                    </span>
+                  </div>
+                </div>
+
+                {/* Nội dung chi tiết */}
+                <div className="px-8 pb-8 flex-1 flex flex-col">
+                  <div className="bg-pink-50/50 rounded-2xl p-5 mb-8 grow">
+                    <p className="text-xs font-bold text-pink-400 uppercase tracking-widest mb-3">
+                      Lộ trình chi tiết:
+                    </p>
+                    <p className="text-gray-600 text-sm leading-relaxed italic whitespace-pre-wrap">
+                      {pkg.mo_ta || "Liên hệ để biết thêm chi tiết lộ trình."}
+                    </p>
+                  </div>
+
+                  <Link
+                    to="/dat-lich"
+                    state={{ goi_id: pkg.id }}
+                    className="block text-center w-full bg-pink-500 text-white py-4 rounded-2xl font-bold text-lg hover:bg-pink-600 transition shadow-lg shadow-pink-100"
+                  >
+                    Đăng Ký Ngay
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-20 bg-indigo-900 rounded-[3rem] p-10 md:p-16 text-center text-white relative overflow-hidden">
+          <div className="relative z-10">
+            <h2 className="text-3xl md:text-4xl font-black mb-6">
+              Cần Tư Vấn Gói Chăm Sóc Riêng?
+            </h2>
+            <p className="text-indigo-100 mb-10 max-w-xl mx-auto opacity-80">
+              Đội ngũ chuyên gia của chúng tôi luôn sẵn sàng thiết kế lộ trình
+              cá nhân hóa phù hợp nhất với thể trạng của mẹ và bé.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <a
+                href="tel:0973714055"
+                className="bg-white text-indigo-900 px-10 py-4 rounded-2xl font-bold text-lg hover:bg-indigo-50 transition"
+              >
+                Gọi Ngay: 0973.714.055
+              </a>
               <Link
                 to="/dat-lich"
-                className={`block text-center w-full py-4 rounded-xl font-bold text-lg transition ${pkg.btnColor}`}
+                className="bg-indigo-500 text-white px-10 py-4 rounded-2xl font-bold text-lg hover:bg-indigo-600 transition"
               >
-                Mua Gói Này
+                Yêu Cầu Gọi Lại
               </Link>
             </div>
-          ))}
+          </div>
+          {/* Decor */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32"></div>
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/5 rounded-full -ml-24 -mb-24"></div>
         </div>
       </div>
     </div>

@@ -3,6 +3,8 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../pages/admin/Sidebar";
 
 const AdminLayout = () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
       {/* Cột trái: Sidebar điều hướng cố định */}
@@ -22,11 +24,11 @@ const AdminLayout = () => {
             </button>
             <div className="flex items-center gap-3 cursor-pointer pl-4 border-l border-gray-200">
               <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 font-bold flex items-center justify-center">
-                A
+                {user.name?.charAt(0) || "U"}
               </div>
               <div className="hidden sm:block text-sm">
-                <p className="font-bold text-gray-900">Admin</p>
-                <p className="text-xs text-gray-500">Quản trị viên</p>
+                <p className="font-bold text-gray-900">{user.name || "Người dùng"}</p>
+                <p className="text-xs text-gray-500">{user.role_name || "Thành viên"}</p>
               </div>
             </div>
           </div>

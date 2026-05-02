@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
+import { serviceAPI, chatbotAPI } from "../../services/apiClient";
 
 const HomePage = () => {
   // Danh sách các ảnh hiển thị ở Slider (bạn có thể thay link ảnh thực tế vào đây)
@@ -22,6 +24,9 @@ const HomePage = () => {
     },
   ]);
 
+  // State lưu danh sách 3 dịch vụ nổi bật
+  const [featuredServices, setFeaturedServices] = useState([]);
+
   const messagesEndRef = useRef(null);
 
   // Kích hoạt animation khi trang vừa render xong
@@ -37,56 +42,178 @@ const HomePage = () => {
     return () => clearInterval(timer); // Xóa timer khi component bị unmount
   }, [images.length]);
 
+  // Lấy dữ liệu dịch vụ từ Backend API khi trang vừa tải
+  useEffect(() => {
+    const fetchFeaturedServices = async () => {
+      try {
+        const response = await serviceAPI.getAll();
+        let data = [];
+        if (response?.data?.success) {
+          data = response.data.data;
+        } else if (Array.isArray(response?.data)) {
+          data = response.data;
+        }
+
+        // Nếu DB chưa có dữ liệu, dùng dữ liệu mẫu để giao diện đẹp hơn
+        if (data.length === 0) {
+          data = [
+            {
+              id: 1,
+              name: "MASSAGE MẸ",
+              gia: 450000,
+              mo_ta:
+                "Massage thư giãn giúp mẹ giảm căng thẳng, mệt mỏi và cải thiện tuần hoàn máu.",
+              icon: "🤰",
+            },
+            {
+              id: 2,
+              name: "CHĂM SÓC MẸ VÀ BÉ TẠI TRUNG TÂM",
+              gia: 800000,
+              mo_ta:
+                "Chăm sóc toàn diện cho mẹ và bé tại trung tâm với trang thiết bị hiện đại.",
+              icon: "🏢",
+            },
+            {
+              id: 3,
+              name: "CHĂM SÓC MẸ VÀ BÉ TẠI NHÀ",
+              gia: 1000000,
+              mo_ta:
+                "Dịch vụ chăm sóc tận nơi, tiện lợi và an tâm cho cả gia đình.",
+              icon: "🏠",
+            },
+            {
+              id: 4,
+              name: "DƯỠNG SINH GIA ĐÌNH",
+              gia: 600000,
+              mo_ta:
+                "Các liệu trình dưỡng sinh giúp cân bằng cơ thể và tăng cường sức khỏe cho cả gia đình.",
+              icon: "👨‍👩‍👧‍👦",
+            },
+            {
+              id: 5,
+              name: "ĐẢ THÔNG KINH LẠC",
+              gia: 500000,
+              mo_ta:
+                "Giúp lưu thông khí huyết, giảm đau nhức và cải thiện sức khỏe tổng thể.",
+              icon: "✨",
+            },
+            {
+              id: 6,
+              name: "ĐAU MỎI VAI GÁY, TÊ BÌ TAY",
+              gia: 400000,
+              mo_ta:
+                "Chuyên sâu giảm đau mỏi vai gáy và tê bì chân tay hiệu quả.",
+              icon: "💆",
+            },
+            {
+              id: 7,
+              name: "ĐAU MỎI NHỨC, TÊ BÌ CHÂN",
+              gia: 400000,
+              mo_ta:
+                "Liệu pháp đặc trị đau nhức và tê bì chân giúp đi lại nhẹ nhàng.",
+              icon: "🦶",
+            },
+          ];
+        }
+
+        // Lấy 6 dịch vụ đầu tiên để làm dịch vụ nổi bật
+        setFeaturedServices(data.slice(0, 7));
+      } catch (err) {
+        console.error("Lỗi tải dịch vụ nổi bật:", err);
+        // Fallback data khi lỗi API
+        setFeaturedServices([
+          {
+            id: 1,
+            name: "MASSAGE MẸ",
+            gia: 450000,
+            mo_ta: "Massage thư giãn giúp mẹ giảm căng thẳng, mệt mỏi.",
+            icon: "🤰",
+          },
+          {
+            id: 2,
+            name: "CHĂM SÓC MẸ VÀ BÉ TẠI TRUNG TÂM",
+            gia: 800000,
+            mo_ta: "Chăm sóc toàn diện tại trung tâm.",
+            icon: "🏢",
+          },
+          {
+            id: 3,
+            name: "CHĂM SÓC MẸ VÀ BÉ TẠI NHÀ",
+            gia: 1000000,
+            mo_ta: "Dịch vụ chăm sóc tận nơi tiện lợi.",
+            icon: "🏠",
+          },
+          {
+            id: 4,
+            name: "DƯỠNG SINH GIA ĐÌNH",
+            gia: 600000,
+            mo_ta: "Liệu trình dưỡng sinh cho cả gia đình.",
+            icon: "👨‍👩‍👧‍👦",
+          },
+          {
+            id: 5,
+            name: "ĐẢ THÔNG KINH LẠC",
+            gia: 500000,
+            mo_ta: "Giúp lưu thông khí huyết.",
+            icon: "✨",
+          },
+          {
+            id: 6,
+            name: "ĐAU MỎI VAI GÁY, TÊ BÌ TAY",
+            gia: 400000,
+            mo_ta: "Giảm đau mỏi vai gáy hiệu quả.",
+            icon: "💆",
+          },
+        ]);
+      }
+    };
+    fetchFeaturedServices();
+  }, []);
+
   // Tự động cuộn xuống tin nhắn mới nhất trong Chatbot
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isChatOpen]);
 
   // Hàm xử lý gửi tin nhắn của Chatbot
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
 
-    const newMessages = [...messages, { text: inputMessage, isBot: false }];
+    const userText = inputMessage;
+    const newMessages = [...messages, { text: userText, isBot: false }];
     setMessages(newMessages);
     setInputMessage("");
 
-    // Giả lập AI suy nghĩ và trả lời sau 1 giây
-    setTimeout(() => {
-      let botReply =
-        "Dạ, hiện tại AI của mình đang trong quá trình học hỏi. Mẹ có thể để lại số điện thoại hoặc nhấn 'Tư Vấn Miễn Phí' để chuyên viên hỗ trợ chi tiết hơn nhé!";
-      const lowerInput = inputMessage.toLowerCase();
+    // Hiển thị trạng thái đang gõ
+    setMessages((prev) => [
+      ...prev,
+      { text: "...", isBot: true, isLoading: true },
+    ]);
 
-      // Các kịch bản giả lập (Keyword matching)
-      if (
-        lowerInput.includes("giá") ||
-        lowerInput.includes("bao nhiêu") ||
-        lowerInput.includes("chi phí")
-      ) {
-        botReply =
-          "Dạ, bên mình có các gói chăm sóc đa dạng. Gói lẻ từ 350.000đ/buổi, gói tháng cơ bản từ 3.500.000đ, và gói VIP là 8.900.000đ. Mẹ muốn tham khảo dịch vụ chăm bé hay phục hồi cho mẹ ạ?";
-      } else if (
-        lowerInput.includes("địa chỉ") ||
-        lowerInput.includes("ở đâu")
-      ) {
-        botReply =
-          "Trung tâm Mom&Baby có địa chỉ tại 123 Đường ABC, Quận XYZ, TP. HCM mẹ nhé. Bên mình có hỗ trợ dịch vụ chăm sóc tận nhà nữa ạ!";
-      } else if (
-        lowerInput.includes("đặt lịch") ||
-        lowerInput.includes("đăng ký")
-      ) {
-        botReply =
-          "Tuyệt vời! Mẹ có thể bấm vào nút 'Đặt Lịch Hẹn' ở góc trên cùng hoặc để lại Số điện thoại tại đây để bên mình gọi lại chốt lịch ngay ạ.";
-      } else if (lowerInput.includes("tắm bé") || lowerInput.includes("rốn")) {
-        botReply =
-          "Dịch vụ tắm bé chuẩn Y khoa bên mình bao gồm: Massage, tắm gội, vệ sinh rốn, mắt, mũi. Điều dưỡng viên 100% có chứng chỉ Y tế sẽ đến tận nhà phục vụ mẹ và bé ạ.";
-      } else if (lowerInput.includes("tắc tia sữa")) {
-        botReply =
-          "Tắc tia sữa rất khó chịu, mẹ đừng lo! Bên mình có máy siêu âm đa tần kết hợp massage bằng tay giúp thông tia sữa nhẹ nhàng, không đau. Mẹ cần hỗ trợ ngay không ạ?";
+    try {
+      // Gọi API chatbot từ backend để giấu API Key
+      const response = await chatbotAPI.chat(userText);
+
+      let botReply = "Xin lỗi mẹ, AI đang bận chút xíu. Mẹ thử lại nhé!";
+      if (response.data.success) {
+        botReply = response.data.reply;
       }
 
-      setMessages((prev) => [...prev, { text: botReply, isBot: true }]);
-    }, 1000);
+      setMessages((prev) => [
+        ...prev.filter((msg) => !msg.isLoading),
+        { text: botReply, isBot: true },
+      ]);
+    } catch (error) {
+      console.error("Lỗi gọi API Chatbot:", error);
+      setMessages((prev) => [
+        ...prev.filter((msg) => !msg.isLoading),
+        {
+          text: "Xin lỗi mẹ, không thể kết nối tới máy chủ AI lúc này.",
+          isBot: true,
+        },
+      ]);
+    }
   };
 
   return (
@@ -123,12 +250,18 @@ const HomePage = () => {
                   : "translate-y-10 opacity-0"
               }`}
             >
-              <button className="bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full font-semibold transition shadow-lg text-lg">
+              <Link
+                to="/dich-vu"
+                className="bg-pink-500 hover:bg-pink-600 text-white px-8 py-3 rounded-full font-semibold transition shadow-lg text-lg"
+              >
                 Khám Phá Dịch Vụ
-              </button>
-              <button className="bg-white hover:bg-gray-50 text-pink-500 border border-pink-200 px-8 py-3 rounded-full font-semibold transition shadow text-lg">
+              </Link>
+              <a
+                href="tel:19001234"
+                className="bg-white hover:bg-gray-50 text-pink-500 border border-pink-200 px-8 py-3 rounded-full font-semibold transition shadow text-lg inline-block"
+              >
                 Tư Vấn Miễn Phí
-              </button>
+              </a>
             </div>
           </div>
 
@@ -201,72 +334,54 @@ const HomePage = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {/* Card 1 */}
-            <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition p-8 border border-pink-50">
-              <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-3xl text-pink-500">🛁</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {featuredServices.length > 0 ? (
+              featuredServices.map((service) => (
+                <div
+                  key={service.id}
+                  className="bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-300 p-8 border border-pink-50 flex flex-col h-full group"
+                >
+                  <div className="w-16 h-16 bg-pink-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-pink-500 transition-colors duration-300">
+                    <span className="text-3xl group-hover:scale-110 transition-transform duration-300">
+                      {service.icon || "🌸"}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    {service.name}
+                  </h3>
+                  <p className="text-gray-600 mb-6 grow line-clamp-3">
+                    {service.mo_ta}
+                  </p>
+                  <div className="mt-auto border-t border-pink-50 pt-6">
+                    <div className="flex justify-between items-center mb-6">
+                      <span className="text-gray-500 text-sm">Giá từ:</span>
+                      <span className="text-pink-500 font-extrabold text-xl">
+                        {service.gia?.toLocaleString()}đ
+                      </span>
+                    </div>
+                    <Link
+                      to="/dat-lich"
+                      className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-pink-200 transition-all active:scale-95"
+                    >
+                      Đặt Lịch Ngay
+                    </Link>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="col-span-3 text-center text-gray-500 py-10">
+                Đang tải danh sách dịch vụ nổi bật...
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Tắm Bé Sơ Sinh
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Massage, tắm gội và vệ sinh rốn, mắt, mũi cho bé yêu theo chuẩn
-                y khoa ngay tại nhà.
-              </p>
-              <a
-                href="#"
-                className="text-pink-500 font-semibold hover:text-pink-600 inline-flex items-center"
-              >
-                Xem chi tiết <span className="ml-2">→</span>
-              </a>
-            </div>
-
-            {/* Card 2 */}
-            <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition p-8 border border-pink-50">
-              <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-3xl text-teal-500">🤰</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Chăm Sóc Mẹ Bầu
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Massage bầu giúp giảm đau lưng, chuột rút, giảm phù nề và mang
-                lại giấc ngủ ngon.
-              </p>
-              <a
-                href="#"
-                className="text-teal-500 font-semibold hover:text-teal-600 inline-flex items-center"
-              >
-                Xem chi tiết <span className="ml-2">→</span>
-              </a>
-            </div>
-
-            {/* Card 3 */}
-            <div className="bg-white rounded-2xl shadow-sm hover:shadow-xl transition p-8 border border-pink-50">
-              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-6">
-                <span className="text-3xl text-purple-500">🌸</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Phục Hồi Sau Sinh
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Chăm sóc vết khâu/mổ, xông hơ vùng kín, massage tống sản dịch và
-                lấy lại vóc dáng.
-              </p>
-              <a
-                href="#"
-                className="text-purple-500 font-semibold hover:text-purple-600 inline-flex items-center"
-              >
-                Xem chi tiết <span className="ml-2">→</span>
-              </a>
-            </div>
+            )}
           </div>
 
           <div className="text-center mt-12">
-            <button className="bg-white border-2 border-pink-500 text-pink-500 hover:bg-pink-50 px-8 py-3 rounded-full font-semibold transition">
+            <Link
+              to="/dich-vu"
+              className="inline-block bg-white border-2 border-pink-500 text-pink-500 hover:bg-pink-50 px-8 py-3 rounded-full font-semibold transition"
+            >
               Xem Tất Cả Dịch Vụ
-            </button>
+            </Link>
           </div>
         </div>
       </section>
@@ -275,21 +390,19 @@ const HomePage = () => {
       <section className="bg-pink-500 py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
           <h2 className="text-3xl font-bold mb-4">
-            Bạn cần tư vấn chi tiết về các gói dịch vụ?
+            Bạn cần tư vấn chi tiết về các dịch vụ?
           </h2>
           <p className="mb-8 text-pink-100 text-lg">
             Để lại thông tin, đội ngũ y tế của chúng tôi sẽ liên hệ lại với bạn
             trong thời gian sớm nhất.
           </p>
           <div className="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <input
-              type="text"
-              placeholder="Số điện thoại của bạn"
-              className="px-6 py-3 rounded-full text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-300 w-full sm:w-64"
-            />
-            <button className="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-full font-semibold transition">
-              Nhận Tư Vấn
-            </button>
+            <a
+              href="tel:19001234"
+              className="bg-gray-900 hover:bg-gray-800 text-white px-10 py-4 rounded-full font-bold transition shadow-xl flex items-center justify-center gap-2"
+            >
+              <span>📞</span> Gọi Ngay: 1900 1234
+            </a>
           </div>
         </div>
       </section>
@@ -298,7 +411,7 @@ const HomePage = () => {
       <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
         {/* Khung Chat */}
         {isChatOpen && (
-          <div className="bg-white w-80 sm:w-96 rounded-2xl shadow-2xl border border-pink-100 flex flex-col mb-4 overflow-hidden transform transition-all animate-fade-in-up origin-bottom-right">
+          <div className="bg-white w-80 sm:w-96 h-125 rounded-2xl shadow-2xl border border-pink-100 flex flex-col mb-4 overflow-hidden transform transition-all animate-fade-in-up origin-bottom-right">
             <div className="bg-linear-to-r from-pink-500 to-pink-400 p-4 text-white flex justify-between items-center">
               <div className="flex items-center space-x-2">
                 <span className="text-2xl">🤖</span>
@@ -330,16 +443,30 @@ const HomePage = () => {
               </button>
             </div>
 
-            <div className="flex-1 h-80 p-4 overflow-y-auto bg-gray-50 flex flex-col space-y-4 custom-scrollbar">
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col space-y-4 custom-scrollbar">
               {messages.map((msg, idx) => (
                 <div
                   key={idx}
                   className={`flex ${msg.isBot ? "justify-start" : "justify-end"}`}
                 >
                   <div
-                    className={`max-w-[80%] p-3 text-sm rounded-2xl shadow-sm ${msg.isBot ? "bg-white text-gray-800 rounded-tl-none border border-gray-100" : "bg-pink-500 text-white rounded-tr-none"}`}
+                    className={`max-w-[80%] p-3 text-sm rounded-2xl shadow-sm ${msg.isBot ? "bg-white text-gray-800 rounded-tl-none border border-gray-100" : "bg-pink-500 text-white rounded-tr-none"} ${msg.isLoading ? "animate-pulse" : ""}`}
                   >
-                    {msg.text}
+                    {msg.isLoading ? (
+                      <span className="flex space-x-1 items-center h-5">
+                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
+                        <span
+                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.2s" }}
+                        ></span>
+                        <span
+                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
+                          style={{ animationDelay: "0.4s" }}
+                        ></span>
+                      </span>
+                    ) : (
+                      msg.text
+                    )}
                   </div>
                 </div>
               ))}
@@ -403,3 +530,22 @@ const HomePage = () => {
 };
 
 export default HomePage;
+
+// Thêm CSS tùy chỉnh cho thanh cuộn khung chat
+const style = document.createElement("style");
+style.innerHTML = `
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #fbcfe8;
+    border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #f9a8d4;
+  }
+`;
+document.head.appendChild(style);

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { statsAPI } from "../../services/apiClient";
 import {
   BarChart,
   Bar,
@@ -10,19 +11,64 @@ import {
 } from "recharts";
 
 const Revenue = () => {
-  // Dữ liệu mẫu cho biểu đồ
-  const data = [
-    { name: "T1", revenue: 30000000 },
-    { name: "T2", revenue: 45000000 },
-    { name: "T3", revenue: 32000000 },
-    { name: "T4", revenue: 50000000 },
-    { name: "T5", revenue: 48000000 },
-    { name: "T6", revenue: 60000000 },
-    { name: "T7", revenue: 55000000 },
-    { name: "T8", revenue: 65000000 },
-    { name: "T9", revenue: 70000000 },
-    { name: "T10", revenue: 45500000 }, // Tháng hiện tại
-  ];
+  const [revenueData, setRevenueData] = useState([]);
+  const [transactions, setTransactions] = useState([]);
+  const [summary, setSummary] = useState({
+    monthly: 0,
+    daily: 0,
+    pending: 0,
+  });
+  const [isLoading, setIsLoading] = useState(true);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  useEffect(() => {
+    // Chỉ Admin (1) và Quản lý (4) mới có quyền xem doanh thu
+    if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
+      return;
+    }
+    const fetchRevenue = async () => {
+      try {
+        const res = await statsAPI.getRevenue();
+        if (res.data.success) {
+          const { revenueByMonth, recentTransactions } = res.data.data;
+
+          // Format data for Recharts
+          const chartData = Array.from({ length: 12 }, (_, i) => ({
+            name: `T${i + 1}`,
+            revenue: 0,
+          }));
+
+          revenueByMonth.forEach((item) => {
+            chartData[item.month - 1].revenue = parseFloat(item.revenue);
+          });
+
+          setRevenueData(chartData);
+          setTransactions(recentTransactions);
+
+          // Mock summary calculation based on transactions or separate API
+          const totalMonthly =
+            revenueByMonth.find((m) => m.month === new Date().getMonth() + 1)
+              ?.revenue || 0;
+          setSummary({
+            monthly: totalMonthly,
+            daily: recentTransactions
+              .filter(
+                (t) =>
+                  new Date(t.ngay_thanh_toan).toDateString() ===
+                  new Date().toDateString(),
+              )
+              .reduce((sum, t) => sum + parseFloat(t.so_tien), 0),
+            pending: 0, // This would need another query
+          });
+        }
+      } catch (err) {
+        console.error("Lỗi tải báo cáo doanh thu:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRevenue();
+  }, []);
 
   // Tùy chỉnh hiển thị Tooltip khi hover vào cột
   const CustomTooltip = ({ active, payload, label }) => {
@@ -42,6 +88,22 @@ const Revenue = () => {
     return null;
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+      </div>
+    );
+  }
+
+  if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-gray-500">Bạn không có quyền truy cập trang này.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in-up">
       <h2 className="text-2xl font-bold text-gray-800">Báo cáo Doanh thu</h2>
@@ -52,40 +114,42 @@ const Revenue = () => {
           <p className="text-sm font-medium text-gray-500 mb-1">
             Tổng doanh thu (Tháng này)
           </p>
-          <p className="text-3xl font-extrabold text-gray-900">45.500.000đ</p>
+          <p className="text-3xl font-extrabold text-gray-900">
+            {new Intl.NumberFormat("vi-VN").format(summary.monthly)}đ
+          </p>
           <p className="text-xs text-green-500 mt-2 font-medium">
-            ↑ Tăng 12% so với tháng trước
+            ↑ Dữ liệu thực tế từ hệ thống
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-pink-500">
           <p className="text-sm font-medium text-gray-500 mb-1">
             Doanh thu hôm nay
           </p>
-          <p className="text-3xl font-extrabold text-gray-900">3.200.000đ</p>
+          <p className="text-3xl font-extrabold text-gray-900">
+            {new Intl.NumberFormat("vi-VN").format(summary.daily)}đ
+          </p>
           <p className="text-xs text-gray-400 mt-2">
-            Từ 5 đơn hàng đã thanh toán
+            Từ các giao dịch trong ngày
           </p>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
           <p className="text-sm font-medium text-gray-500 mb-1">
             Chờ thanh toán
           </p>
-          <p className="text-3xl font-extrabold text-gray-900">8.900.000đ</p>
-          <p className="text-xs text-gray-400 mt-2">
-            2 Lịch hẹn gói đang thực hiện
-          </p>
+          <p className="text-3xl font-extrabold text-gray-900">0đ</p>
+          <p className="text-xs text-gray-400 mt-2">Đang cập nhật...</p>
         </div>
       </div>
 
       {/* Biểu đồ doanh thu */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h3 className="text-lg font-bold text-gray-900 mb-6">
-          Biểu đồ doanh thu năm nay
+          Biểu đồ doanh thu năm {new Date().getFullYear()}
         </h3>
         <div className="h-80 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={data}
+              data={revenueData}
               margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
             >
               <CartesianGrid
@@ -128,10 +192,6 @@ const Revenue = () => {
           <h3 className="text-lg font-bold text-gray-900">
             Giao dịch thanh toán gần đây
           </h3>
-          <input
-            type="month"
-            className="px-3 py-1 border border-gray-200 rounded-lg text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-          />
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -140,55 +200,43 @@ const Revenue = () => {
                 <th className="px-6 py-4 font-semibold">Mã Hóa Đơn</th>
                 <th className="px-6 py-4 font-semibold">Mã Lịch Hẹn</th>
                 <th className="px-6 py-4 font-semibold">Khách hàng</th>
-                <th className="px-6 py-4 font-semibold">Phương thức</th>
                 <th className="px-6 py-4 font-semibold">Ngày thanh toán</th>
                 <th className="px-6 py-4 font-semibold text-right">Số tiền</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 text-sm">
-              <tr className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 font-medium text-gray-500">
-                  #HD-8201
-                </td>
-                <td className="px-6 py-4 font-bold text-pink-500">#LH1020</td>
-                <td className="px-6 py-4 font-medium text-gray-900">
-                  Lê Thị C
-                </td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded text-xs font-bold">
-                    Chuyển khoản
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">25/10/2023 - 15:30</td>
-                <td className="px-6 py-4 font-bold text-gray-900 text-right">
-                  + 8.900.000đ
-                </td>
-              </tr>
-              <tr className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 font-medium text-gray-500">
-                  #HD-8200
-                </td>
-                <td className="px-6 py-4 font-bold text-pink-500">#LH1018</td>
-                <td className="px-6 py-4 font-medium text-gray-900">
-                  Trần Bích D
-                </td>
-                <td className="px-6 py-4">
-                  <span className="px-2 py-1 bg-green-50 text-green-600 rounded text-xs font-bold">
-                    Tiền mặt
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-gray-500">24/10/2023 - 10:15</td>
-                <td className="px-6 py-4 font-bold text-gray-900 text-right">
-                  + 350.000đ
-                </td>
-              </tr>
+              {transactions.length > 0 ? (
+                transactions.map((t) => (
+                  <tr key={t.id} className="hover:bg-gray-50 transition">
+                    <td className="px-6 py-4 font-medium text-gray-500">
+                      #HD-{t.id}
+                    </td>
+                    <td className="px-6 py-4 font-bold text-pink-500">
+                      #LH{t.lich_hen_id}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900">
+                      {t.customer_name || t.guest_name || "Khách hàng"}
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {new Date(t.ngay_thanh_toan).toLocaleString("vi-VN")}
+                    </td>
+                    <td className="px-6 py-4 font-bold text-gray-900 text-right">
+                      + {new Intl.NumberFormat("vi-VN").format(t.so_tien)}đ
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-6 py-10 text-center text-gray-500"
+                  >
+                    Chưa có giao dịch nào.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
-        </div>
-        <div className="px-6 py-4 border-t border-gray-100 text-center">
-          <button className="text-pink-500 font-semibold hover:text-pink-600">
-            Xem tất cả hóa đơn
-          </button>
         </div>
       </div>
     </div>

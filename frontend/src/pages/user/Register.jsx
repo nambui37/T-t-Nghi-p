@@ -1,9 +1,85 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { authAPI } from "../../services/apiClient";
+import toast from "react-hot-toast";
 
 const Register = () => {
+  const navigate = useNavigate();
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [errors, setErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => {
+    if (error || Object.keys(errors).length > 0 || success) {
+      const timer = setTimeout(() => {
+        setError("");
+        setErrors({});
+        setSuccess("");
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, errors, success]);
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: null });
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = "Vui lòng nhập họ và tên.";
+    if (!formData.email.trim()) {
+      newErrors.email = "Vui lòng nhập email.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "Email không hợp lệ.";
+    }
+
+    if (!formData.password) newErrors.password = "Vui lòng nhập mật khẩu.";
+    else if (formData.password.length < 6)
+      newErrors.password = "Mật khẩu phải từ 6 ký tự.";
+
+    if (!formData.confirmPassword)
+      newErrors.confirmPassword = "Vui lòng xác nhận mật khẩu.";
+    else if (formData.password !== formData.confirmPassword)
+      newErrors.confirmPassword = "Mật khẩu xác nhận không khớp.";
+
+    if (Object.keys(newErrors).length > 0) return setErrors(newErrors);
+
+    setError("");
+    setSuccess("");
+    setIsLoading(true);
+    try {
+      const res = await authAPI.register(formData);
+      toast.success(
+        res.data.message || "Đăng ký thành công! Vui lòng xác thực tài khoản.",
+      );
+      // Chuyển thẳng đến trang xác thực
+      navigate("/verify-account", { state: { email: formData.email } });
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        (err.response?.data?.errors
+          ? err.response.data.errors[0].msg
+          : "Đã có lỗi xảy ra.");
+      setError(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div
@@ -32,7 +108,7 @@ const Register = () => {
             </Link>
           </p>
         </div>
-        <form className="mt-8 space-y-6" action="#" method="POST">
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
           <div className="space-y-4">
             <div>
               <label
@@ -46,9 +122,16 @@ const Register = () => {
                 name="name"
                 type="text"
                 required
-                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 sm:text-sm transition"
+                value={formData.name}
+                onChange={handleChange}
+                className={`appearance-none rounded-xl relative block w-full px-4 py-3 border placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 sm:text-sm transition ${errors.name ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:ring-pink-500 focus:border-pink-500"}`}
                 placeholder="Nhập họ và tên của bạn"
               />
+              {errors.name && (
+                <p className="text-red-500 text-xs mt-1 font-medium">
+                  {errors.name}
+                </p>
+              )}
             </div>
 
             <div>
@@ -64,9 +147,16 @@ const Register = () => {
                 type="email"
                 autoComplete="email"
                 required
-                className="appearance-none rounded-xl relative block w-full px-4 py-3 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 sm:text-sm transition"
+                value={formData.email}
+                onChange={handleChange}
+                className={`appearance-none rounded-xl relative block w-full px-4 py-3 border placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 sm:text-sm transition ${errors.email ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:ring-pink-500 focus:border-pink-500"}`}
                 placeholder="Nhập địa chỉ email"
               />
+              {errors.email && (
+                <p className="text-red-500 text-xs mt-1 font-medium">
+                  {errors.email}
+                </p>
+              )}
             </div>
             <div>
               <label
@@ -81,9 +171,16 @@ const Register = () => {
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  className="appearance-none rounded-xl relative block w-full px-4 py-3 pr-12 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 sm:text-sm transition"
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`appearance-none rounded-xl relative block w-full px-4 py-3 pr-12 border placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 sm:text-sm transition ${errors.password ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:ring-pink-500 focus:border-pink-500"}`}
                   placeholder="Tạo mật khẩu (ít nhất 6 ký tự)"
                 />
+                {errors.password && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">
+                    {errors.password}
+                  </p>
+                )}
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-pink-500 transition"
@@ -137,12 +234,19 @@ const Register = () => {
               <div className="relative">
                 <input
                   id="confirm-password"
-                  name="confirm-password"
+                  name="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
                   required
-                  className="appearance-none rounded-xl relative block w-full px-4 py-3 pr-12 border border-gray-300 placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 sm:text-sm transition"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`appearance-none rounded-xl relative block w-full px-4 py-3 pr-12 border placeholder-gray-400 text-gray-900 focus:outline-none focus:ring-2 sm:text-sm transition ${errors.confirmPassword ? "border-red-500 focus:ring-red-500 focus:border-red-500" : "border-gray-300 focus:ring-pink-500 focus:border-pink-500"}`}
                   placeholder="Nhập lại mật khẩu"
                 />
+                {errors.confirmPassword && (
+                  <p className="text-red-500 text-xs mt-1 font-medium">
+                    {errors.confirmPassword}
+                  </p>
+                )}
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-500 hover:text-pink-500 transition"
@@ -188,12 +292,29 @@ const Register = () => {
             </div>
           </div>
 
+          {/* Hiển thị thông báo lỗi hoặc thành công */}
+          {error && (
+            <div className="text-sm text-red-600 bg-red-100 p-3 rounded-lg">
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="text-sm text-green-600 bg-green-100 p-3 rounded-lg">
+              {success}
+            </div>
+          )}
+
           <div>
             <button
               type="submit"
-              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-full text-white bg-pink-500 hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition shadow-lg hover:shadow-xl"
+              disabled={isLoading}
+              className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-full text-white bg-pink-500 hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition shadow-lg hover:shadow-xl disabled:bg-pink-300 disabled:cursor-not-allowed"
             >
-              Đăng ký
+              {isLoading ? (
+                <span className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></span>
+              ) : (
+                "Đăng ký"
+              )}
             </button>
           </div>
 

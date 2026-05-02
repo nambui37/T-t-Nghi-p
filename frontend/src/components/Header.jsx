@@ -1,67 +1,102 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logout } = useAuth();
+  const isLoggedIn = !!user;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-20 items-center">
-          <div className="shrink-0 flex items-center gap-2">
-            {/* DÁN LINK ẢNH TỪ GOOGLE VÀO THUỘC TÍNH SRC BÊN DƯỚI */}
+          <Link to="/" className="shrink-0 flex items-center gap-2">
             <img
               src="https://png.pngtree.com/png-clipart/20240406/original/pngtree-mother-hugging-her-son-png-image_14768495.png"
               alt="Mom&Baby Logo"
               className="w-10 h-10 object-contain"
             />
             <span className="text-3xl font-bold text-pink-500">Mom&Baby</span>
-          </div>
+          </Link>
           <nav className="hidden md:flex space-x-8">
             <Link
               to="/"
-              className="text-pink-500 font-medium border-b-2 border-pink-500"
+              className={`${isActive("/") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
             >
               Trang chủ
             </Link>
             <Link
               to="/dich-vu"
-              className="text-gray-600 hover:text-pink-500 transition font-medium"
+              className={`${isActive("/dich-vu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
             >
               Dịch vụ
             </Link>
             <Link
-              to="/goi-dich-vu"
-              className="text-gray-600 hover:text-pink-500 transition font-medium"
-            >
-              Gói dịch vụ
-            </Link>
-            <Link
               to="/doi-ngu"
-              className="text-gray-600 hover:text-pink-500 transition font-medium"
+              className={`${isActive("/doi-ngu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
             >
               Đội ngũ
             </Link>
             <Link
               to="/cam-nang"
-              className="text-gray-600 hover:text-pink-500 transition font-medium"
+              className={`${isActive("/cam-nang") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
             >
               Cẩm nang
             </Link>
           </nav>
           <div className="hidden md:flex items-center space-x-4">
-            <Link
-              to="/login"
-              className="text-pink-500 font-semibold hover:text-pink-600 transition"
-            >
-              Đăng nhập
-            </Link>
-            <Link
-              to="/ho-so"
-              className="text-gray-600 font-semibold hover:text-pink-600 transition"
-            >
-              Hồ sơ
-            </Link>
+            {!isLoggedIn ? (
+              <Link
+                to="/login"
+                className="text-pink-500 font-semibold hover:text-pink-600 transition"
+              >
+                Đăng nhập
+              </Link>
+            ) : (
+              <div className="flex items-center space-x-4">
+                {[1, 2, 4, 5, 6, 7, 8].includes(user?.role_id) && (
+                  <Link
+                    to="/admin"
+                    className="text-indigo-600 font-bold hover:text-indigo-700 transition text-sm bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 flex items-center gap-1"
+                  >
+                    <span>⚙️</span> Trang quản trị
+                  </Link>
+                )}
+                <Link
+                  to="/ho-so"
+                  className={`${isActive("/ho-so") ? "text-pink-500" : "text-gray-600"} font-semibold hover:text-pink-600 transition flex items-center gap-2`}
+                >
+                  {user?.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt={user.name}
+                      className="w-8 h-8 rounded-full object-cover border border-pink-100"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 bg-pink-100 text-pink-500 rounded-full flex items-center justify-center text-xs font-bold">
+                      {user?.name?.charAt(0)}
+                    </div>
+                  )}
+                  <span>Chào, {user?.name?.split(" ").pop()}</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="text-gray-500 hover:text-red-500 font-medium transition text-sm"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            )}
             <Link
               to="/dat-lich"
               className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-semibold transition shadow-md hover:shadow-lg block"
@@ -159,6 +194,15 @@ const Header = () => {
             >
               Hồ sơ của tôi
             </Link>
+            {[1, 2, 4].includes(user?.role_id) && (
+              <Link
+                to="/admin"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="block text-center px-3 py-3 text-base font-semibold text-indigo-700 bg-indigo-50 rounded-xl hover:bg-indigo-100 border border-indigo-100"
+              >
+                ⚙️ Trang Quản Trị
+              </Link>
+            )}
             <Link
               to="/dat-lich"
               onClick={() => setIsMobileMenuOpen(false)}
