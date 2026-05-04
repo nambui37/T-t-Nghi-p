@@ -14,20 +14,8 @@ const HomePage = () => {
   const [currentImage, setCurrentImage] = useState(0);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  // State cho AI Chatbot
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [inputMessage, setInputMessage] = useState("");
-  const [messages, setMessages] = useState([
-    {
-      text: "Chào mẹ! Mình là Trợ lý AI của Mom&Baby 🌸. Mình có thể giúp gì cho mẹ và bé hôm nay ạ?",
-      isBot: true,
-    },
-  ]);
-
   // State lưu danh sách 3 dịch vụ nổi bật
   const [featuredServices, setFeaturedServices] = useState([]);
-
-  const messagesEndRef = useRef(null);
 
   // Kích hoạt animation khi trang vừa render xong
   useEffect(() => {
@@ -169,52 +157,6 @@ const HomePage = () => {
     };
     fetchFeaturedServices();
   }, []);
-
-  // Tự động cuộn xuống tin nhắn mới nhất trong Chatbot
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isChatOpen]);
-
-  // Hàm xử lý gửi tin nhắn của Chatbot
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const userText = inputMessage;
-    const newMessages = [...messages, { text: userText, isBot: false }];
-    setMessages(newMessages);
-    setInputMessage("");
-
-    // Hiển thị trạng thái đang gõ
-    setMessages((prev) => [
-      ...prev,
-      { text: "...", isBot: true, isLoading: true },
-    ]);
-
-    try {
-      // Gọi API chatbot từ backend để giấu API Key
-      const response = await chatbotAPI.chat(userText);
-
-      let botReply = "Xin lỗi mẹ, AI đang bận chút xíu. Mẹ thử lại nhé!";
-      if (response.data.success) {
-        botReply = response.data.reply;
-      }
-
-      setMessages((prev) => [
-        ...prev.filter((msg) => !msg.isLoading),
-        { text: botReply, isBot: true },
-      ]);
-    } catch (error) {
-      console.error("Lỗi gọi API Chatbot:", error);
-      setMessages((prev) => [
-        ...prev.filter((msg) => !msg.isLoading),
-        {
-          text: "Xin lỗi mẹ, không thể kết nối tới máy chủ AI lúc này.",
-          isBot: true,
-        },
-      ]);
-    }
-  };
 
   return (
     <>
@@ -359,12 +301,21 @@ const HomePage = () => {
                         {service.gia?.toLocaleString()}đ
                       </span>
                     </div>
-                    <Link
-                      to="/dat-lich"
-                      className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-pink-200 transition-all active:scale-95"
-                    >
-                      Đặt Lịch Ngay
-                    </Link>
+                    <div className="flex flex-col gap-3">
+                      <Link
+                        to={`/dich-vu/${service.id}`}
+                        className="block w-full text-center bg-pink-50 text-pink-600 hover:bg-pink-100 font-bold py-3 rounded-xl transition-all"
+                      >
+                        Xem Chi Tiết
+                      </Link>
+                      <Link
+                        to="/dat-lich"
+                        state={{ goi_id: service.id }}
+                        className="block w-full text-center bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-pink-200 transition-all active:scale-95"
+                      >
+                        Đặt Lịch Ngay
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))
@@ -406,146 +357,8 @@ const HomePage = () => {
           </div>
         </div>
       </section>
-
-      {/* AI Chatbot Widget */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
-        {/* Khung Chat */}
-        {isChatOpen && (
-          <div className="bg-white w-80 sm:w-96 h-125 rounded-2xl shadow-2xl border border-pink-100 flex flex-col mb-4 overflow-hidden transform transition-all animate-fade-in-up origin-bottom-right">
-            <div className="bg-linear-to-r from-pink-500 to-pink-400 p-4 text-white flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">🤖</span>
-                <div>
-                  <h3 className="font-bold text-sm">Trợ lý AI Mom&Baby</h3>
-                  <p className="text-xs text-pink-100 flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    Đang hoạt động
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsChatOpen(false)}
-                className="text-white hover:text-gray-200"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex-1 p-4 overflow-y-auto bg-gray-50 flex flex-col space-y-4 custom-scrollbar">
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${msg.isBot ? "justify-start" : "justify-end"}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 text-sm rounded-2xl shadow-sm ${msg.isBot ? "bg-white text-gray-800 rounded-tl-none border border-gray-100" : "bg-pink-500 text-white rounded-tr-none"} ${msg.isLoading ? "animate-pulse" : ""}`}
-                  >
-                    {msg.isLoading ? (
-                      <span className="flex space-x-1 items-center h-5">
-                        <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></span>
-                        <span
-                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.2s" }}
-                        ></span>
-                        <span
-                          className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"
-                          style={{ animationDelay: "0.4s" }}
-                        ></span>
-                      </span>
-                    ) : (
-                      msg.text
-                    )}
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
-            </div>
-
-            <form
-              onSubmit={handleSendMessage}
-              className="p-3 bg-white border-t border-gray-100 flex items-center space-x-2"
-            >
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Nhập câu hỏi của mẹ..."
-                className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 text-sm transition"
-              />
-              <button
-                type="submit"
-                className="w-10 h-10 bg-pink-500 text-white rounded-full flex items-center justify-center hover:bg-pink-600 transition shadow-md shrink-0 disabled:opacity-50"
-                disabled={!inputMessage.trim()}
-              >
-                <svg
-                  className="w-4 h-4 ml-1"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                </svg>
-              </button>
-            </form>
-          </div>
-        )}
-
-        {/* Nút bật/tắt Chatbot */}
-        <button
-          onClick={() => setIsChatOpen(!isChatOpen)}
-          className={`${isChatOpen ? "bg-gray-800" : "bg-linear-to-r from-pink-500 to-pink-600 animate-bounce"} text-white w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:shadow-pink-500/50 transition-all hover:scale-110 z-50`}
-        >
-          {isChatOpen ? (
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          ) : (
-            <span className="text-3xl">🤖</span>
-          )}
-        </button>
-      </div>
     </>
   );
 };
 
 export default HomePage;
-
-// Thêm CSS tùy chỉnh cho thanh cuộn khung chat
-const style = document.createElement("style");
-style.innerHTML = `
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #fbcfe8;
-    border-radius: 10px;
-  }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #f9a8d4;
-  }
-`;
-document.head.appendChild(style);

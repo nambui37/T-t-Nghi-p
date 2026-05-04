@@ -106,6 +106,20 @@ const Profile = () => {
       return;
     }
 
+    // Kiểm tra query string để hiển thị thông báo thanh toán thành công
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("status") === "success") {
+      toast.success(
+        "Thanh toán thành công! Lịch hẹn của bạn đã được ghi nhận.",
+        {
+          id: "payment-success-toast",
+          duration: 5000,
+        },
+      );
+      // Xóa query param để không hiện lại khi reload
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const fetchProfileData = async () => {
       try {
         setIsLoading(true);
@@ -331,8 +345,31 @@ const Profile = () => {
     setIsReviewModalOpen(true);
   };
 
+  const handleCancelAppointment = async (id) => {
+    if (
+      window.confirm(
+        "Bạn có chắc chắn muốn hủy lịch hẹn này? Lưu ý: Tiền cọc (15%) sẽ không được hoàn lại theo quy định của trung tâm.",
+      )
+    ) {
+      try {
+        const res = await appointmentAPI.cancel(id);
+        if (res.data.success) {
+          toast.success("Đã hủy lịch hẹn thành công.");
+          // Refresh data
+          const appointmentsRes = await appointmentAPI.getAll();
+          if (appointmentsRes.data.success) {
+            setAppointments(appointmentsRes.data.data || []);
+          }
+        }
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Lỗi khi hủy lịch hẹn.");
+      }
+    }
+  };
+
   const handleLogout = () => {
     logout();
+    localStorage.removeItem("token");
     navigate("/login");
   };
 
@@ -975,6 +1012,16 @@ const Profile = () => {
                               className="text-xs font-bold text-pink-500 hover:text-pink-600 underline"
                             >
                               Đánh giá ngay
+                            </button>
+                          )}
+                          {["cho_xac_nhan", "da_xac_nhan"].includes(
+                            apt.status,
+                          ) && (
+                            <button
+                              onClick={() => handleCancelAppointment(apt.id)}
+                              className="text-xs font-bold text-red-500 hover:text-red-600 underline"
+                            >
+                              Hủy lịch
                             </button>
                           )}
                         </div>

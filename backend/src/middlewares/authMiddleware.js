@@ -3,8 +3,16 @@ const jwt = require("jsonwebtoken");
 const authMiddleware = {
   // Middleware kiểm tra xem người dùng đã đăng nhập (có token) chưa
   verifyToken: (req, res, next) => {
-    // Lấy token từ HttpOnly Cookie hoặc từ header Authorization (dự phòng)
-    const token = req.cookies?.token || (req.headers.authorization && req.headers.authorization.split(" ")[1]);
+    let token = null;
+    
+    // Ưu tiên số 1: Lấy token từ Header (chuẩn Bearer Token mà Frontend đang gửi)
+    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
+      token = req.headers.authorization.split(" ")[1];
+    } 
+    // Ưu tiên số 2: Lấy từ Cookie (dự phòng cho các request test bằng Postman/trình duyệt trực tiếp)
+    else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
+    }
     
     console.log("--- Auth Check ---");
     console.log("Path:", req.originalUrl);

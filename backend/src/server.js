@@ -14,22 +14,73 @@ const shiftRoutes = require("./routes/shiftRoutes");
 const healthRecordRoutes = require("./routes/healthRecordRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
+const careRecordRoutes = require("./routes/careRecordRoutes");
+const incidentRoutes = require("./routes/incidentRoutes");
+const chatRoutes = require("./routes/chatRoutes");
 const db = require("./configs/db");
-const initDatabase = require("./utils/dbInit");
 
+
+
+const http = require("http");
+const { Server } = require("socket.io");
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  path: "/socket.io",
+  cors: {
+    origin: [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://192.168.1.10:5173"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 const PORT = process.env.PORT || 5001;
 
+// Socket.io Logic
+io.on("connection", (socket) => {
+  console.log("A user connected:", socket.id);
+
+  socket.on("join_room", (room) => {
+    socket.join(room);
+    console.log(`User ${socket.id} joined room: ${room}`);
+  });
+
+  socket.on("send_message", async (data) => {
+    // data: { room, sender_id, sender_name, message, timestamp }
+    try {
+      // Lưu tin nhắn vào database
+      await db.query(
+        "INSERT INTO messages (sender_id, message, room) VALUES (?, ?, ?)",
+        [data.sender_id, data.message, data.room]
+      );
+      io.to(data.room).emit("receive_message", data);
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+  });
+});
+
 // Khởi tạo database
-initDatabase();
+
 
 // Middlewares
 // Cấu hình CORS tường minh cho phép React gọi API
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173", // Chỉ định chính xác domain của Frontend
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"], // Các phương thức cho phép
-  credentials: true // Bắt buộc nếu bạn có dùng cookie/session/token
+  origin: [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://192.168.1.10:5173"
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  credentials: true
 }));
 app.use(express.json({ limit: '50mb' })); // Tăng giới hạn cho body JSON
 app.use(express.urlencoded({ limit: '50mb', extended: true })); // Tăng giới hạn cho urlencoded
@@ -51,6 +102,9 @@ app.use("/api/shifts", shiftRoutes);
 app.use("/api/health-records", healthRecordRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/care-records", careRecordRoutes);
+app.use("/api/incidents", incidentRoutes);
+app.use("/api/chat", chatRoutes);
 
 // Simple health check for reviews
 app.get("/api/test-reviews", (req, res) => {
@@ -89,6 +143,6 @@ app.use((err, req, res, next) => {
 });
 
 // Khởi động server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Server backend đang chạy tại http://localhost:${PORT}`);
 });

@@ -74,6 +74,9 @@ const Login = () => {
 
         // LƯU USER VÀO LOCALSTORAGE ĐỂ GIỮ PHIÊN ĐĂNG NHẬP KHI F5 (RELOAD)
         localStorage.setItem("user", JSON.stringify(response.data.user));
+        if (response.data.token) {
+          localStorage.setItem("token", response.data.token);
+        }
 
         // Sử dụng hàm login từ AuthContext (Bỏ phần token vì đã dùng HttpOnly Cookie)
         login(response.data.user);

@@ -29,7 +29,9 @@ const Appointments = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [selectedApt, setSelectedApt] = useState(null);
+  const [assignData, setAssignData] = useState({ nhan_vien_id: "" });
   const [statusData, setStatusData] = useState({
     status: "",
     trang_thai_thanh_toan: "",
@@ -170,6 +172,23 @@ const Appointments = () => {
     }
   };
 
+  const handleAssignStaff = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      const res = await appointmentAPI.assignEmployee(
+        selectedApt.id,
+        assignData.nhan_vien_id,
+      );
+      if (res.data.success) {
+        toast.success("Đã phân công nhân viên thành công!");
+        setIsAssignModalOpen(false);
+        fetchData();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Lỗi khi phân công.");
+    }
+  };
+
   const openStatusModal = (apt) => {
     setSelectedApt(apt);
     setStatusData({
@@ -230,8 +249,8 @@ const Appointments = () => {
         label: "Chưa thanh toán",
         class: "bg-gray-100 text-gray-600",
       },
-      da_coc_30: {
-        label: `Đã cọc 30% (${deposit?.toLocaleString()}đ)`,
+      da_coc_15: {
+        label: `Đã cọc 15% (${deposit?.toLocaleString()}đ)`,
         class: "bg-orange-100 text-orange-700",
       },
       da_thanh_toan_het: {
@@ -240,8 +259,7 @@ const Appointments = () => {
       },
     };
     const s = config[status] || config.chua_thanh_toan;
-    const methodLabel =
-      method === "vnpay" ? "VNPay" : method === "momo" ? "Momo" : "Tiền mặt";
+    const methodLabel = method === "vnpay" ? "VNPay" : "Tiền mặt";
 
     return (
       <div className="flex flex-col space-y-1">
@@ -387,6 +405,18 @@ const Appointments = () => {
                           className="text-blue-500 hover:underline font-medium"
                         >
                           Cập nhật
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedApt(apt);
+                            setAssignData({
+                              nhan_vien_id: apt.nhan_vien_id || "",
+                            });
+                            setIsAssignModalOpen(true);
+                          }}
+                          className="text-indigo-600 hover:underline font-medium"
+                        >
+                          Phân công
                         </button>
                         <button
                           onClick={() => handleDelete(apt.id)}
@@ -607,7 +637,7 @@ const Appointments = () => {
               }
               options={[
                 { value: "chua_thanh_toan", label: "Chưa thanh toán" },
-                { value: "da_coc_30", label: "Đã cọc 30%" },
+                { value: "da_coc_15", label: "Đã cọc 15%" },
                 { value: "da_thanh_toan_het", label: "Đã tất toán" },
               ]}
             />
@@ -618,12 +648,19 @@ const Appointments = () => {
               type="date"
               value={statusData.ngay_bat_dau_thuc_te}
               min={today}
-              onChange={(e) =>
-                setStatusData({
-                  ...statusData,
-                  ngay_bat_dau_thuc_te: e.target.value,
-                })
-              }
+              onChange={(e) => {
+                const newStartDate = e.target.value;
+                setStatusData((prev) => ({
+                  ...prev,
+                  ngay_bat_dau_thuc_te: newStartDate,
+                  ngay_ket_thuc_thuc_te:
+                    newStartDate &&
+                    (!prev.ngay_ket_thuc_thuc_te ||
+                      prev.ngay_ket_thuc_thuc_te < newStartDate)
+                      ? newStartDate
+                      : prev.ngay_ket_thuc_thuc_te,
+                }));
+              }}
             />
             <FormInput
               label="Kết thúc thực tế"
@@ -863,13 +900,32 @@ const Appointments = () => {
                     </div>
                     <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
                       <span className="text-gray-600 font-medium">
-                        Cân nặng bé:
+                        Số lượng bé:
                       </span>
                       <span className="font-bold text-gray-900">
-                        {selectedApt.can_nang_be
-                          ? selectedApt.can_nang_be + " kg"
-                          : "Chưa cập nhật"}
+                        {selectedApt.so_luong_be || 1} bé
                       </span>
+                    </div>
+                    <div className="flex justify-between items-start p-2 bg-white/60 rounded-lg">
+                      <span className="text-gray-600 font-medium">
+                        Cân nặng bé:
+                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        {selectedApt.can_nang_be ? (
+                          selectedApt.can_nang_be.split(",").map((w, i) => (
+                            <span key={i} className="font-bold text-gray-900">
+                              {selectedApt.so_luong_be > 1
+                                ? `Bé ${i + 1}: `
+                                : ""}
+                              {w} kg
+                            </span>
+                          ))
+                        ) : (
+                          <span className="font-bold text-gray-900">
+                            Chưa cập nhật
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="pt-2 mt-2 border-t border-pink-100/50">
                       <span className="text-gray-500 font-medium text-xs block mb-1">
@@ -913,6 +969,36 @@ const Appointments = () => {
             </div>
           </div>
         )}
+      </AdminModal>
+
+      {/* Modal Phân công nhân viên */}
+      <AdminModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        title={`Phân công nhân viên cho LH #${selectedApt?.id}`}
+        onConfirm={handleAssignStaff}
+      >
+        <div className="space-y-4">
+          <FormSelect
+            label="Chọn chuyên viên thực hiện"
+            required
+            value={assignData.nhan_vien_id}
+            onChange={(e) =>
+              setAssignData({ ...assignData, nhan_vien_id: e.target.value })
+            }
+            options={[
+              { value: "", label: "-- Chọn chuyên viên --" },
+              ...employees.map((e) => ({
+                value: e.id,
+                label: `${e.name} (${e.phone}) - ${e.role_name || "NV"}`,
+              })),
+            ]}
+          />
+          <p className="text-sm text-gray-500 italic">
+            * Sau khi phân công, nhân viên sẽ nhận được thông báo về ca làm việc
+            mới.
+          </p>
+        </div>
       </AdminModal>
     </div>
   );

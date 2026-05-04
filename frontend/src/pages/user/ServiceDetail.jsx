@@ -18,6 +18,15 @@ const ServiceDetail = () => {
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  // Danh sách ảnh mẫu cho slider (2-4 ảnh)
+  const serviceImages = [
+    "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1515377905703-c4788e51af15?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1531983412531-1f49a365ffed?auto=format&fit=crop&q=80&w=800",
+    "https://images.unsplash.com/photo-1555252333-9f8e92e65ee9?auto=format&fit=crop&q=80&w=800",
+  ];
 
   const averageRating =
     reviews.length > 0
@@ -63,6 +72,14 @@ const ServiceDetail = () => {
 
     fetchData();
   }, [id, user]);
+
+  // Auto-play slider
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % serviceImages.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   const handleSubmitReview = async (e) => {
     e.preventDefault();
@@ -129,9 +146,52 @@ const ServiceDetail = () => {
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="bg-pink-50 rounded-3xl p-12 flex justify-center items-center text-8xl shadow-inner">
-              {service.icon || "✨"}
+            {/* Image Slider */}
+            <div className="relative group rounded-3xl overflow-hidden shadow-2xl h-100 bg-gray-100">
+              {serviceImages.map((img, index) => (
+                <div
+                  key={index}
+                  className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+                    index === currentImageIndex ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <img
+                    src={img}
+                    alt={`${service.name} ${index + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-linear-to-t from-black/40 to-transparent"></div>
+                </div>
+              ))}
+
+              {/* Slider Dots */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                {serviceImages.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-2.5 h-2.5 rounded-full transition-all ${
+                      index === currentImageIndex
+                        ? "bg-pink-500 w-8"
+                        : "bg-white/50 hover:bg-white"
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* VIP Badge */}
+              {service.name?.toLowerCase().includes("vip") && (
+                <div className="absolute top-6 left-6 bg-linear-to-r from-amber-400 to-yellow-600 text-white px-6 py-2 rounded-full font-black text-sm shadow-lg z-10 animate-bounce">
+                  👑 GÓI VIP CAO CẤP
+                </div>
+              )}
+
+              {/* Service Icon overlay */}
+              <div className="absolute top-6 right-6 w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center text-3xl z-10 border border-white/30">
+                {service.icon || "✨"}
+              </div>
             </div>
+
             <div>
               <nav className="flex mb-4 text-sm text-gray-500">
                 <Link to="/dich-vu" className="hover:text-pink-500">
@@ -159,6 +219,31 @@ const ServiceDetail = () => {
                   </span>
                 </div>
               </div>
+
+              {/* VIP Room Info */}
+              {service.name?.toLowerCase().includes("vip") && (
+                <div className="mb-8 p-6 bg-amber-50 rounded-2xl border border-amber-100">
+                  <h4 className="text-amber-800 font-bold mb-2 flex items-center gap-2">
+                    <span>✨</span> Đặc quyền Phòng VIP
+                  </h4>
+                  <ul className="text-amber-700 text-sm space-y-2">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                      Phòng riêng tư, yên tĩnh với trang thiết bị hiện đại bậc
+                      nhất.
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                      Chuyên viên cao cấp trực tiếp chăm sóc 1:1.
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+                      Sử dụng thảo dược organic nhập khẩu cao cấp.
+                    </li>
+                  </ul>
+                </div>
+              )}
+
               <p className="text-gray-600 text-lg leading-relaxed mb-8 whitespace-pre-line">
                 {service.mo_ta}
               </p>
@@ -300,60 +385,65 @@ const ServiceDetail = () => {
                   reviews.map((review) => (
                     <div
                       key={review.id}
-                      className="border-b border-gray-100 pb-8 last:border-0"
+                      className="flex gap-4 ml-12 pb-8 last:border-0"
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-pink-100 overflow-hidden flex items-center justify-center text-pink-500 font-bold">
-                            {review.customer_avatar ? (
-                              <img
-                                src={
-                                  review.customer_avatar.startsWith("http")
-                                    ? review.customer_avatar
-                                    : `${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001"}/${review.customer_avatar}`
-                                }
-                                alt={review.customer_name}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.target.onerror = null;
-                                  e.target.src = ""; // Nếu lỗi thì ẩn img để hiện chữ cái đầu
-                                  e.target.style.display = "none";
-                                }}
-                              />
-                            ) : null}
-                            <span className="avatar-fallback">
-                              {review.customer_name?.charAt(0) || "K"}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="font-bold text-gray-900">
-                              {review.customer_name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {new Date(review.created_at).toLocaleDateString(
-                                "vi-VN",
-                              )}
+                      <div className="flex-1">
+                        <div className="bg-white p-5 rounded-2xl rounded-tl-none border border-gray-100 shadow-sm relative">
+                          {/* Avatar tròn nổi bên góc trái */}
+                          <div className="absolute -left-12 top-0">
+                            <div className="w-10 h-10 rounded-full bg-pink-100 overflow-hidden flex items-center justify-center text-pink-500 font-bold border-2 border-white shadow-md">
+                              {review.customer_avatar ? (
+                                <img
+                                  src={
+                                    review.customer_avatar.startsWith("http")
+                                      ? review.customer_avatar
+                                      : `${import.meta.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001"}/${review.customer_avatar}`
+                                  }
+                                  alt={review.customer_name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = "";
+                                    e.target.style.display = "none";
+                                  }}
+                                />
+                              ) : null}
+                              <span className="avatar-fallback">
+                                {review.customer_name?.charAt(0) || "K"}
+                              </span>
                             </div>
                           </div>
-                        </div>
-                        <div className="flex text-yellow-400">
-                          {[...Array(5)].map((_, i) => (
-                            <span
-                              key={i}
-                              className={
-                                i < review.rating
-                                  ? "text-yellow-400"
-                                  : "text-gray-200"
-                              }
-                            >
-                              ★
-                            </span>
-                          ))}
+                          <div className="flex justify-between items-start mb-3">
+                            <div>
+                              <h4 className="font-bold text-gray-900 ml-2">
+                                {review.customer_name}
+                              </h4>
+                              <div className="text-xs text-gray-500 ml-2">
+                                {new Date(review.created_at).toLocaleDateString(
+                                  "vi-VN",
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex text-yellow-400">
+                              {[...Array(5)].map((_, i) => (
+                                <span
+                                  key={i}
+                                  className={
+                                    i < review.rating
+                                      ? "text-yellow-400"
+                                      : "text-gray-200"
+                                  }
+                                >
+                                  ★
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          <p className="text-gray-600 leading-relaxed ml-2">
+                            {review.comment}
+                          </p>
                         </div>
                       </div>
-                      <p className="text-gray-600 leading-relaxed ml-13">
-                        {review.comment}
-                      </p>
                     </div>
                   ))
                 ) : (

@@ -51,6 +51,25 @@ const appointmentController = {
       res.status(500).json({ success: false, message: "Lỗi cập nhật ghi chú", error: error.message });
     }
   },
+  assignEmployee: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { nhan_vien_id } = req.body;
+      
+      // Chỉ Admin (1) và Quản lý (4) mới có quyền phân việc
+      if (![1, 4].includes(Number(req.user.role_id))) {
+        return res.status(403).json({ success: false, message: "Bạn không có quyền phân chia việc." });
+      }
+
+      const affectedRows = await AppointmentModel.assignEmployee(id, nhan_vien_id);
+      if (affectedRows === 0) return res.status(404).json({ success: false, message: "Không tìm thấy lịch hẹn" });
+      
+      res.status(200).json({ success: true, message: "Đã phân chia việc cho nhân viên" });
+    } catch (error) {
+      console.error("Lỗi phân chia việc:", error);
+      res.status(500).json({ success: false, message: "Lỗi phân chia việc", error: error.message });
+    }
+  },
   delete: async (req, res) => {
     try {
       const affectedRows = await AppointmentModel.deleteAppointment(req.params.id);
@@ -58,6 +77,25 @@ const appointmentController = {
       res.status(200).json({ success: true, message: "Đã hủy lịch hẹn" });
     } catch (error) {
       res.status(500).json({ success: false, message: "Lỗi hủy lịch hẹn", error: error.message });
+    }
+  },
+  cancel: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.id;
+      
+      const affectedRows = await AppointmentModel.cancelAppointment(id, userId);
+      if (affectedRows === 0) {
+        return res.status(404).json({ success: false, message: "Không tìm thấy lịch hẹn hoặc bạn không có quyền hủy lịch này." });
+      }
+      
+      res.status(200).json({ 
+        success: true, 
+        message: "Đã hủy lịch hẹn. Lưu ý: Tiền cọc sẽ không được hoàn lại theo quy định." 
+      });
+    } catch (error) {
+      console.error("Lỗi hủy lịch hẹn:", error);
+      res.status(500).json({ success: false, message: error.message || "Lỗi khi hủy lịch hẹn" });
     }
   },
   updateStatus: async (req, res) => {

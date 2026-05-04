@@ -96,6 +96,8 @@ authRouter.put(
 // 2. CÁC ROUTE QUẢN LÝ TÀI KHOẢN (ADMIN) - Prefix: /api/users
 // ==========================================
 
+// Sử dụng verifyToken thay vì verifyAdmin để tài khoản Quản lý (role_id = 4) cũng tải được danh sách vai trò
+userRouter.get("/roles", authMiddleware.verifyToken, authController.getRoles);
 userRouter.get("/customers", authMiddleware.verifyAdmin, authController.getCustomers);
 userRouter.get("/", authMiddleware.verifyAdmin, authController.getAllUsers);
 userRouter.post(

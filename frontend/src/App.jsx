@@ -32,7 +32,10 @@ import HealthRecordManagement from "./pages/admin/HealthRecordManagement";
 import EmployeeShifts from "./pages/admin/EmployeeShifts";
 import ArticleManagement from "./pages/admin/ArticleManagement";
 import ReviewManagement from "./pages/admin/ReviewManagement";
+import IncidentManagement from "./pages/admin/IncidentManagement";
 import ResetPassword from "./pages/user/ResetPassword";
+import ChatWindow from "./components/ChatWindow";
+import AIChatbot from "./components/AIChatbot";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
 // Component bảo vệ Route yêu cầu đăng nhập
@@ -59,6 +62,8 @@ function App() {
       <Router>
         <Toaster position="top-right" reverseOrder={false} />
         <div className="App">
+          <ChatWindow />
+          <AIChatbot />
           <Routes>
             {/* Các trang CÓ Header/Footer (được bọc bởi UserLayout) */}
             <Route element={<UserLayout />}>
@@ -164,7 +169,7 @@ function App() {
               <Route
                 path="ca-lam"
                 element={
-                  <ProtectedRoute allowedRoles={[2, 4, 5, 6, 7, 8]}>
+                  <ProtectedRoute allowedRoles={[2, 5, 6, 7, 8]}>
                     <EmployeeShifts />
                   </ProtectedRoute>
                 }
@@ -182,6 +187,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={[1, 4]}>
                     <ReviewManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="su-co"
+                element={
+                  <ProtectedRoute allowedRoles={[1, 4]}>
+                    <IncidentManagement />
                   </ProtectedRoute>
                 }
               />

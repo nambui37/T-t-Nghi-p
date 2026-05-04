@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { serviceAPI } from "../../services/apiClient";
 
 const Services = () => {
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const searchKeyword = searchParams.get("search") || "";
+
   const [activeCategory, setActiveCategory] = useState("all");
   const [services, setServices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -13,10 +17,8 @@ const Services = () => {
     const fetchServices = async () => {
       try {
         setIsLoading(true);
-        // Gọi hàm API đã được định nghĩa ở bước 2
         const response = await serviceAPI.getAll();
 
-        // Controller Backend của bạn đang trả về: { success: true, data: services }
         let data = [];
         if (response?.data?.success) {
           data = response.data.data;
@@ -104,16 +106,22 @@ const Services = () => {
     fetchServices();
   }, []);
 
-  const filteredServices =
-    activeCategory === "all"
-      ? services
-      : services.filter(
-          (s) =>
-            s.category === activeCategory ||
-            (activeCategory === "cham_be" && s.loai_id === 1) ||
-            (activeCategory === "cham_me" && s.loai_id === 2) ||
-            (activeCategory === "duong_sinh" && s.loai_id === 3),
-        );
+  const filteredServices = services.filter((s) => {
+    // Lọc theo từ khóa tìm kiếm (nếu có)
+    const matchesSearch =
+      !searchKeyword ||
+      s.name?.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+      s.mo_ta?.toLowerCase().includes(searchKeyword.toLowerCase());
+
+    // Lọc theo danh mục
+    const matchesCategory =
+      activeCategory === "all" ||
+      (activeCategory === "cham_be" && s.loai_id === 1) ||
+      (activeCategory === "cham_me" && s.loai_id === 2) ||
+      (activeCategory === "duong_sinh" && s.loai_id === 3);
+
+    return matchesSearch && matchesCategory;
+  });
 
   // Hiển thị giao diện Loading hoặc Lỗi nếu quá trình fetch đang diễn ra / thất bại
   if (isLoading) {
@@ -133,11 +141,12 @@ const Services = () => {
     <div className="bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <h1 className="text-4xl font-bold text-center text-pink-500 mb-6">
-          Dịch Vụ Của Chúng Tôi
+          {searchKeyword ? "Dịch Vụ Tìm Thấy" : "Dịch Vụ Của Chúng Tôi"}
         </h1>
         <p className="text-lg text-center text-gray-600 mb-12">
-          Trải nghiệm các dịch vụ chăm sóc mẹ và bé chuyên nghiệp, an toàn và
-          chuẩn y khoa.
+          {searchKeyword
+            ? `Đang hiển thị các kết quả phù hợp với từ khóa: "${searchKeyword}"`
+            : "Trải nghiệm các dịch vụ chăm sóc mẹ và bé chuyên nghiệp, an toàn và chuẩn y khoa."}
         </p>
 
         {/* Bộ lọc danh mục */}
@@ -158,7 +167,7 @@ const Services = () => {
             onClick={() => setActiveCategory("cham_be")}
             className={`px-6 py-2 rounded-full font-semibold transition ${activeCategory === "cham_be" ? "bg-pink-500 text-white shadow-md" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
           >
-            Chăm sóc Bé
+            Bé và Mẹ
           </button>
           <button
             onClick={() => setActiveCategory("duong_sinh")}
@@ -168,47 +177,63 @@ const Services = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {filteredServices.map((service) => (
-            <div
-              key={service.id}
-              className="bg-white border border-gray-100 rounded-3xl shadow-sm p-8 hover:shadow-xl transition flex flex-col h-full group"
-            >
+        {filteredServices.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="text-6xl mb-4">🔍</div>
+            <p className="text-gray-500 text-xl">
+              Không tìm thấy dịch vụ nào phù hợp.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {filteredServices.map((service) => (
               <div
-                className={`w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 transition-transform ${service.color || "bg-pink-50 text-pink-500"}`}
+                key={service.id}
+                className="bg-white border border-gray-100 rounded-3xl shadow-sm p-8 hover:shadow-xl transition flex flex-col h-full group"
               >
-                {service.icon || "✨"}
+                <div
+                  className={`w-20 h-20 rounded-2xl flex items-center justify-center text-4xl mb-6 group-hover:scale-110 transition-transform ${service.color || "bg-pink-50 text-pink-500"}`}
+                >
+                  {service.icon || "✨"}
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {service.title || service.name}
+                </h3>
+                <div className="flex items-center text-sm font-bold text-gray-500 mb-4 space-x-4">
+                  <span className="flex items-center">
+                    ⏱️ {service.duration || "60 Phút"}
+                  </span>
+                  <span className="flex items-center text-pink-500">
+                    💰{" "}
+                    {service.price ||
+                      `${Number(service.gia).toLocaleString("vi-VN")}đ`}
+                  </span>
+                  <span className="flex items-center text-yellow-500">
+                    ★ {service.rating || "4.8"}
+                  </span>
+                </div>
+                <p className="text-gray-600 mb-8 grow leading-relaxed line-clamp-3">
+                  {service.desc || service.mo_ta}
+                </p>
+                <div className="flex flex-col gap-3">
+                  <Link
+                    to={`/dich-vu/${service.id}`}
+                    className="text-center w-full bg-pink-50 text-pink-600 hover:bg-pink-100 py-3 rounded-xl font-bold transition"
+                  >
+                    Xem chi tiết
+                  </Link>
+                  <Link
+                    to="/dat-lich"
+                    state={{ goi_id: service.id }}
+                    className="text-center w-full bg-pink-500 text-white hover:bg-pink-600 py-3 rounded-xl font-bold transition shadow-lg shadow-pink-100"
+                  >
+                    Đặt lịch ngay
+                  </Link>
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                {/* Map lại biến cho phù hợp với trường dữ liệu thật ở DB, ví dụ DB lưu là 'name' */}
-                {service.title || service.name}
-              </h3>
-              <div className="flex items-center text-sm font-bold text-gray-500 mb-4 space-x-4">
-                <span className="flex items-center">
-                  ⏱️ {service.duration || "60 Phút"}
-                </span>
-                <span className="flex items-center text-pink-500">
-                  💰{" "}
-                  {service.price ||
-                    `${Number(service.gia).toLocaleString("vi-VN")}đ`}
-                </span>
-                <span className="flex items-center text-yellow-500">
-                  ★ {service.rating || "4.8"}
-                </span>
-              </div>
-              <p className="text-gray-600 mb-8 grow leading-relaxed">
-                {service.desc || service.mo_ta}
-              </p>
-              <Link
-                to="/dat-lich"
-                state={{ goi_id: service.id }}
-                className="text-center w-full bg-pink-50 text-pink-600 hover:bg-pink-500 hover:text-white py-3 rounded-xl font-bold transition"
-              >
-                Đặt lịch ngay
-              </Link>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

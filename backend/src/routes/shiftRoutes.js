@@ -7,6 +7,7 @@ const authMiddleware = require("../middlewares/authMiddleware");
 router.get("/available", authMiddleware.verifyToken, shiftController.getAvailable);
 router.post("/accept", authMiddleware.verifyToken, shiftController.accept);
 router.post("/check-in", authMiddleware.verifyToken, shiftController.checkIn);
+router.post("/start-service", authMiddleware.verifyToken, shiftController.startService);
 router.post("/check-out", authMiddleware.verifyToken, shiftController.checkOut);
 
 module.exports = router;

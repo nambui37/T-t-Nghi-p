@@ -41,8 +41,7 @@ const HealthRecordModel = {
       const [shifts] = await db.query(`
         SELECT ct.*, u.name as nhan_vien_name
         FROM chi_tiet_ca_lam ct
-        JOIN nhan_vien nv ON ct.nhan_vien_id = nv.id
-        JOIN users u ON nv.user_id = u.id
+        LEFT JOIN users u ON ct.nhan_vien_id = u.id
         WHERE ct.lich_hen_id = ?
         ORDER BY ct.ngay_lam ASC
       `, [apt.id]);

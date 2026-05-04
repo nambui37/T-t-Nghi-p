@@ -14,7 +14,7 @@ const Payment = () => {
     amount: 0,
     serviceName: "Dịch vụ Mom&Baby",
     type: "deposit",
-    method: "momo",
+    method: "vnpay",
   };
 
   useEffect(() => {
@@ -36,36 +36,23 @@ const Payment = () => {
       setIsLoading(true);
       let res;
 
-      if (method === "vnpay") {
-        // Gọi API tạo yêu cầu thanh toán VNPay
-        res = await paymentAPI.createVNPayPayment({
-          orderId: id,
-          amount: amount,
-          orderInfo: `Thanh toan coc cho lich hen ${id}`,
-        });
-      } else {
-        // Mặc định gọi API tạo yêu cầu thanh toán Momo
-        res = await paymentAPI.createMomoPayment({
-          orderId: id,
-          amount: amount,
-          orderInfo: `Thanh toan coc cho lich hen ${id}`,
-        });
-      }
+      // Gọi API tạo yêu cầu thanh toán VNPay
+      res = await paymentAPI.createVNPayPayment({
+        orderId: id,
+        amount: amount,
+        orderInfo: `Thanh toan coc cho lich hen ${id}`,
+      });
 
       if (res.data && res.data.payUrl) {
         // Lưu cờ vào sessionStorage trước khi chuyển hướng
         sessionStorage.setItem(`payment_pending_${id}`, "true");
         window.location.href = res.data.payUrl;
       } else {
-        toast.error(
-          `Không thể tạo giao dịch ${method === "vnpay" ? "VNPay" : "Momo"} lúc này.`,
-        );
+        toast.error(`Không thể tạo giao dịch VNPay lúc này.`);
       }
     } catch (error) {
       console.error(error);
-      toast.error(
-        `Lỗi khi kết nối với cổng thanh toán ${method === "vnpay" ? "VNPay" : "Momo"}.`,
-      );
+      toast.error(`Lỗi khi kết nối với cổng thanh toán VNPay.`);
     } finally {
       setIsLoading(false);
     }
@@ -89,9 +76,7 @@ const Payment = () => {
             </p>
             <p className="text-sm font-medium text-gray-700 mt-4">
               Thanh toán an toàn và tiện lợi qua cổng thanh toán{" "}
-              <span className="text-pink-600 font-bold">
-                {method === "vnpay" ? "VNPay" : "Momo"}
-              </span>
+              <span className="text-pink-600 font-bold">VNPay</span>
             </p>
           </div>
 
@@ -129,9 +114,7 @@ const Payment = () => {
                   isLoading ? "opacity-70 cursor-not-allowed" : ""
                 }`}
               >
-                {isLoading
-                  ? "Đang xử lý..."
-                  : `Thanh toán bằng ${method === "vnpay" ? "VNPay" : "Momo"}`}
+                {isLoading ? "Đang xử lý..." : `Thanh toán bằng VNPay`}
               </button>
               <button
                 onClick={() => navigate("/ho-so")}

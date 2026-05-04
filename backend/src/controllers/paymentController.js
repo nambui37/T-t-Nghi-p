@@ -18,71 +18,6 @@ function sortObject(obj) {
   return sorted;
 }
 
-exports.createMomoPayment = async (req, res) => {
-  const { amount, orderId, orderInfo } = req.body;
-  
-  const partnerCode = process.env.MOMO_PARTNER_CODE;
-  const accessKey = process.env.MOMO_ACCESS_KEY;
-  const secretKey = process.env.MOMO_SECRET_KEY;
-  
-  const requestId = partnerCode + new Date().getTime();
-  const requestType = "captureWallet";
-  const extraData = ""; 
-  const redirectUrl = "http://localhost:5173/ho-so"; 
-  const ipnUrl = "http://localhost:5001/api/payment/momo-ipn"; 
-
-  const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
-  
-  const signature = crypto.createHmac("sha256", secretKey).update(rawSignature).digest("hex");
-
-  const requestBody = {
-    partnerCode, accessKey, requestId, amount, orderId, orderInfo,
-    redirectUrl, ipnUrl, extraData, requestType, signature, lang: "vi"
-  };
-
-  try {
-    const response = await axios.post("https://test-payment.momo.vn/v2/gateway/api/create", requestBody);
-    return res.json({ payUrl: response.data.payUrl });
-  } catch (error) {
-    return res.status(500).json({ message: "Lỗi kết nối tới Momo", error: error.message });
-  }
-};
-
-exports.momoIPN = async (req, res) => {
-  try {
-    const { partnerCode, orderId, requestId, amount, orderInfo, orderType, transId, resultCode, message, payType, responseTime, extraData, signature } = req.body;
-
-    const secretKey = process.env.MOMO_SECRET_KEY;
-    const accessKey = process.env.MOMO_ACCESS_KEY;
-
-    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
-    
-    const checkSignature = crypto.createHmac("sha256", secretKey).update(rawSignature).digest("hex");
-
-    if (signature !== checkSignature) {
-      console.error("Momo IPN: Invalid signature!");
-      return res.status(400).json({ message: "Invalid signature" });
-    }
-
-    if (resultCode === 0) {
-      console.log(`Momo IPN: Payment successful for Order ID: ${orderId}`);
-      await AppointmentModel.updateStatus(orderId, "da_xac_nhan", { 
-        trang_thai_thanh_toan: "da_coc_30" 
-      });
-      
-      const db = require("../configs/db");
-      await db.query(
-        "INSERT INTO thanh_toan (lich_hen_id, so_tien, ngay_thanh_toan) VALUES (?, ?, NOW())",
-        [orderId, amount]
-      );
-    }
-    return res.status(204).send();
-  } catch (error) {
-    console.error("Lỗi xử lý Momo IPN:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
 exports.createVNPayPayment = async (req, res) => {
   try {
     const { amount, orderId, orderInfo } = req.body;
@@ -100,10 +35,22 @@ exports.createVNPayPayment = async (req, res) => {
         req.socket.remoteAddress ||
         req.connection.socket.remoteAddress;
 
-    let tmnCode = process.env.VNP_TMN_CODE || "TCB00011"; 
-    let secretKey = process.env.VNP_HASH_SECRET || "ABCDEFGH"; 
-    let vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
-    let returnUrl = "http://localhost:5173/ho-so";
+    let tmnCode = process.env.VNP_TMN_CODE || "382BANDA"; 
+    let secretKey = process.env.VNP_HASH_SECRET || "LAEOGK9481U02Z2WMDFR9MGOJO8MUE7A"; 
+    let vnpUrl = process.env.VNP_URL || "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+    
+    // Fix: Cấu hình ReturnUrl linh hoạt hơn
+    let protocol = req.protocol;
+    let host = req.get('host');
+    let returnUrl;
+    
+    if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      returnUrl = `http://localhost:5173/ho-so`;
+    } else {
+      // Nếu truy cập qua IP mạng LAN (ví dụ 192.168.1.10)
+      let ip = host.split(':')[0];
+      returnUrl = `${protocol}://${ip}:5173/ho-so`;
+    }
 
     let vnp_Params = {};
     vnp_Params['vnp_Version'] = '2.1.0';
@@ -136,5 +83,63 @@ exports.createVNPayPayment = async (req, res) => {
 };
 
 exports.vnpayReturn = async (req, res) => {
-  res.redirect("http://localhost:5173/ho-so?status=success");
+  let protocol = req.protocol;
+  let host = req.get('host');
+  let redirectUrl;
+  
+  if (host.includes('localhost') || host.includes('127.0.0.1')) {
+    redirectUrl = `http://localhost:5173/ho-so?status=success`;
+  } else {
+    let ip = host.split(':')[0];
+    redirectUrl = `${protocol}://${ip}:5173/ho-so?status=success`;
+  }
+  
+  res.redirect(redirectUrl);
+};
+
+exports.vnpayIPN = async (req, res) => {
+  try {
+    let vnp_Params = req.query;
+    let secureHash = vnp_Params['vnp_SecureHash'];
+    
+    let orderIdStr = vnp_Params['vnp_TxnRef'];
+    let rspCode = vnp_Params['vnp_ResponseCode'];
+    let amount = vnp_Params['vnp_Amount'] / 100;
+
+    delete vnp_Params['vnp_SecureHash'];
+    delete vnp_Params['vnp_SecureHashType'];
+
+    vnp_Params = sortObject(vnp_Params);
+    
+    let secretKey = process.env.VNP_HASH_SECRET || "LAEOGK9481U02Z2WMDFR9MGOJO8MUE7A";
+    let querystring = require('qs');
+    let signData = querystring.stringify(vnp_Params, { encode: false });
+    let hmac = crypto.createHmac("sha512", secretKey);
+    let signed = hmac.update(Buffer.from(signData, 'utf-8')).digest("hex");     
+
+    if (secureHash === signed) {
+      let orderId = orderIdStr.split('_')[0]; // Tách lấy ID lịch hẹn do lúc tạo nối thêm date.getTime()
+      
+      if (rspCode === '00') {
+        // Cập nhật trạng thái lịch hẹn
+        await AppointmentModel.updateStatus(orderId, "da_xac_nhan", { 
+          trang_thai_thanh_toan: "da_coc_15" // Cọc 15%
+        });
+        
+        // Ghi lại lịch sử giao dịch vào bảng thanh_toan
+        const db = require("../configs/db");
+        await db.query(
+          "INSERT INTO thanh_toan (lich_hen_id, so_tien, hinh_thuc, ngay_thanh_toan) VALUES (?, ?, 'vnpay', NOW())",
+          [orderId, amount]
+        );
+      }
+      // Báo lại cho VNPay biết là Server đã ghi nhận thành công
+      res.status(200).json({ RspCode: '00', Message: 'Confirm Success' });
+    } else {
+      res.status(200).json({ RspCode: '97', Message: 'Checksum failed' });
+    }
+  } catch (error) {
+    console.error("Lỗi xử lý IPN VNPay:", error);
+    res.status(200).json({ RspCode: '99', Message: 'Unknown error' });
+  }
 };

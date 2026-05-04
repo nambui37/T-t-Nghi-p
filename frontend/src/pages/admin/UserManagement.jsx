@@ -9,14 +9,17 @@ const UserManagement = () => {
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [roleOptions, setRoleOptions] = useState([]);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
+    phone: "",
     role_id: 3,
     status: "hoat_dong",
+    avatar: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -27,7 +30,23 @@ const UserManagement = () => {
       return;
     }
     fetchUsers();
+    fetchRoles();
   }, []);
+
+  const fetchRoles = async () => {
+    try {
+      const res = await userAPI.getRoles();
+      // Đảm bảo luôn lấy được mảng dữ liệu dù cấu trúc là res.data.data hay res.data
+      const rolesData = res.data?.data || res.data || [];
+      const options = (Array.isArray(rolesData) ? rolesData : []).map((r) => ({
+        value: r.id,
+        label: r.name,
+      }));
+      setRoleOptions(options);
+    } catch (err) {
+      console.error("Lỗi tải danh sách vai trò:", err);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
@@ -82,6 +101,7 @@ const UserManagement = () => {
         phone: user.phone || "",
         role_id: user.role_id,
         status: user.status,
+        avatar: user.avatar || "",
       });
     } else {
       setEditingUser(null);
@@ -92,6 +112,7 @@ const UserManagement = () => {
         phone: "",
         role_id: 3,
         status: "hoat_dong",
+        avatar: "",
       });
     }
     setIsModalOpen(true);
@@ -131,17 +152,6 @@ const UserManagement = () => {
       }
     }
   };
-
-  const roleOptions = [
-    { value: 1, label: "Admin" },
-    { value: 2, label: "Nhân viên chung" },
-    { value: 3, label: "Khách hàng" },
-    { value: 4, label: "Quản lý" },
-    { value: 5, label: "Lễ tân" },
-    { value: 6, label: "Dưỡng sinh" },
-    { value: 7, label: "Thực phẩm" },
-    { value: 8, label: "Tổng đài" },
-  ];
 
   const statusOptions = [
     { value: "hoat_dong", label: "Hoạt động" },
@@ -203,9 +213,17 @@ const UserManagement = () => {
                   <tr key={u.id} className="hover:bg-indigo-50/30 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
-                          {u.name?.charAt(0) || "U"}
-                        </div>
+                        {u.avatar ? (
+                          <img
+                            src={u.avatar}
+                            alt={u.name}
+                            className="w-10 h-10 rounded-full object-cover border border-indigo-100"
+                          />
+                        ) : (
+                          <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center font-bold">
+                            {u.name?.charAt(0) || "U"}
+                          </div>
+                        )}
                         <p className="font-bold text-gray-900">{u.name}</p>
                       </div>
                     </td>
@@ -238,18 +256,22 @@ const UserManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => handleOpenModal(u)}
-                        className="text-indigo-600 hover:text-indigo-900 font-bold mr-4"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleDelete(u.id)}
-                        className="text-red-600 hover:text-red-900 font-bold"
-                      >
-                        Xóa
-                      </button>
+                      {u.role_id !== 1 && (
+                        <>
+                          <button
+                            onClick={() => handleOpenModal(u)}
+                            className="text-indigo-600 hover:text-indigo-900 font-bold mr-4"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(u.id)}
+                            className="text-red-600 hover:text-red-900 font-bold"
+                          >
+                            Xóa
+                          </button>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -308,14 +330,22 @@ const UserManagement = () => {
           onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
           error={errors.phone}
         />
+        <FormInput
+          label="Link ảnh đại diện"
+          id="avatar"
+          placeholder="https://example.com/avatar.jpg"
+          value={formData.avatar}
+          onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
+        />
         <div className="grid grid-cols-2 gap-4">
           <FormSelect
             label="Vai trò"
             id="role_id"
             options={roleOptions}
             value={formData.role_id}
+            // Ép kiểu về Number để khớp với kiểu dữ liệu của ID vai trò
             onChange={(e) =>
-              setFormData({ ...formData, role_id: e.target.value })
+              setFormData({ ...formData, role_id: Number(e.target.value) })
             }
           />
           <FormSelect

@@ -35,8 +35,8 @@ const Packages = () => {
             Gói Dịch Vụ <span className="text-pink-500">Toàn Diện</span>
           </h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Tiết kiệm đến 30% khi đăng ký các gói chăm sóc dài hạn. Lộ trình
-            chuẩn y khoa giúp mẹ phục hồi và bé phát triển vượt trội.
+            Đặt cọc chỉ 15% để giữ chỗ. Lộ trình chuẩn y khoa giúp mẹ phục hồi và
+            bé phát triển vượt trội.
           </p>
         </div>
 
@@ -87,13 +87,21 @@ const Packages = () => {
                     </p>
                   </div>
 
-                  <Link
-                    to="/dat-lich"
-                    state={{ goi_id: pkg.id }}
-                    className="block text-center w-full bg-pink-500 text-white py-4 rounded-2xl font-bold text-lg hover:bg-pink-600 transition shadow-lg shadow-pink-100"
-                  >
-                    Đăng Ký Ngay
-                  </Link>
+                  <div className="flex flex-col gap-3">
+                    <Link
+                      to={`/dich-vu/${pkg.id}`}
+                      className="block text-center w-full bg-pink-50 text-pink-600 py-3 rounded-2xl font-bold hover:bg-pink-100 transition"
+                    >
+                      Xem chi tiết
+                    </Link>
+                    <Link
+                      to="/dat-lich"
+                      state={{ goi_id: pkg.id }}
+                      className="block text-center w-full bg-pink-500 text-white py-4 rounded-2xl font-bold text-lg hover:bg-pink-600 transition shadow-lg shadow-pink-100"
+                    >
+                      Đăng Ký Ngay
+                    </Link>
+                  </div>
                 </div>
               </div>
             ))}

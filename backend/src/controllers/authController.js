@@ -80,7 +80,7 @@ const authController = {
         sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
         maxAge: 24 * 60 * 60 * 1000
       });
-      res.status(200).json({ success: true, message: "Đăng nhập thành công!", user: payload });
+      res.status(200).json({ success: true, message: "Đăng nhập thành công!", user: payload, token });
     } catch (error) {
       console.error("Lỗi đăng nhập:", error);
       res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ." });
@@ -193,6 +193,16 @@ const authController = {
   },
 
   // --- USER MANAGEMENT (ADMIN) ---
+  getRoles: async (req, res) => {
+    try {
+      const [roles] = await require("../configs/db").query("SELECT id, name FROM roles ORDER BY id ASC");
+      res.status(200).json({ success: true, data: roles });
+    } catch (error) {
+      console.error("Lỗi lấy danh sách vai trò:", error);
+      res.status(500).json({ success: false, message: "Lỗi máy chủ nội bộ" });
+    }
+  },
+
   getCustomers: async (req, res) => {
     try {
       const customers = await AuthModel.getAllCustomers();
@@ -226,6 +236,16 @@ const authController = {
   updateUser: async (req, res) => {
     try {
       const { id } = req.params;
+      const requesterRole = req.user.role_id;
+
+      // Nếu là quản lý (role_id = 4), không được sửa tài khoản admin (role_id = 1)
+      if (requesterRole === 4) {
+        const targetUser = await AuthModel.getUserProfile(id);
+        if (targetUser && targetUser.role_id === 1) {
+          return res.status(403).json({ success: false, message: "Quản lý không có quyền chỉnh sửa tài khoản Admin." });
+        }
+      }
+
       const affectedRows = await AuthModel.updateUser(id, req.body);
       if (affectedRows === 0) return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
       res.status(200).json({ success: true, message: "Cập nhật tài khoản thành công" });
@@ -303,6 +323,16 @@ const authController = {
   deleteUser: async (req, res) => {
     try {
       const { id } = req.params;
+      const requesterRole = req.user.role_id;
+
+      // Nếu là quản lý (role_id = 4), không được xóa tài khoản admin (role_id = 1)
+      if (requesterRole === 4) {
+        const targetUser = await AuthModel.getUserProfile(id);
+        if (targetUser && targetUser.role_id === 1) {
+          return res.status(403).json({ success: false, message: "Quản lý không có quyền xóa tài khoản Admin." });
+        }
+      }
+
       const affectedRows = await AuthModel.deleteUser(id);
       if (affectedRows === 0) return res.status(404).json({ success: false, message: "Không tìm thấy người dùng" });
       res.status(200).json({ success: true, message: "Xóa tài khoản thành công" });

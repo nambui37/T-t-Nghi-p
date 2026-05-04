@@ -11,6 +11,9 @@ DROP TABLE IF EXISTS khuyen_mai;
 DROP TABLE IF EXISTS phuong_thuc_tt;
 DROP TABLE IF EXISTS thanh_toan;
 DROP TABLE IF EXISTS thong_bao;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS su_co;
+DROP TABLE IF EXISTS care_records;
 DROP TABLE IF EXISTS lich_hen_nhan_vien;
 DROP TABLE IF EXISTS chi_tiet_ca_lam;
 DROP TABLE IF EXISTS lich_hen;
@@ -23,7 +26,6 @@ DROP TABLE IF EXISTS goi_dich_vu;
 DROP TABLE IF EXISTS loai_dich_vu;
 DROP TABLE IF EXISTS lich_lam_viec;
 DROP TABLE IF EXISTS ca_lam;
-DROP TABLE IF EXISTS nhan_vien;
 DROP TABLE IF EXISTS ho_so_suc_khoe;
 DROP TABLE IF EXISTS em_be;
 DROP TABLE IF EXISTS khach_hang;
@@ -51,6 +53,7 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
+    avatar VARCHAR(255),
     role_id INT,
     status ENUM('hoat_dong','bi_khoa') DEFAULT 'hoat_dong',
     is_verified TINYINT(1) DEFAULT 0,
@@ -82,6 +85,7 @@ CREATE TABLE em_be (
     khach_hang_id INT,
     ten VARCHAR(255) NOT NULL,
     ngay_sinh DATE,
+    so_luong_be INT DEFAULT 1,
     ghi_chu TEXT,
     FOREIGN KEY (khach_hang_id) REFERENCES khach_hang(id) ON DELETE CASCADE
 );
@@ -94,16 +98,6 @@ CREATE TABLE ho_so_suc_khoe (
     khach_hang_id INT UNIQUE,
     thong_tin TEXT,
     FOREIGN KEY (khach_hang_id) REFERENCES khach_hang(id) ON DELETE CASCADE
-);
-
--- =====================
--- 6. NHÂN VIÊN
--- =====================
-CREATE TABLE nhan_vien (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    user_id INT UNIQUE,
-    chuc_vu VARCHAR(100),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- =====================
@@ -124,7 +118,7 @@ CREATE TABLE lich_lam_viec (
     nhan_vien_id INT,
     ca_lam_id INT,
     ngay DATE,
-    FOREIGN KEY (nhan_vien_id) REFERENCES nhan_vien(id) ON DELETE CASCADE,
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (ca_lam_id) REFERENCES ca_lam(id) ON DELETE CASCADE
 );
 
@@ -212,19 +206,20 @@ CREATE TABLE lich_hen (
     ngay_sinh_be DATE,
     hinh_thuc_sinh ENUM('sinh_thuong', 'sinh_mo'),
     tinh_trang_me TEXT,
-    can_nang_be DECIMAL(4,2),
+    so_luong_be INT DEFAULT 1,
+    can_nang_be VARCHAR(255),
     ghi_chu_be TEXT,
     dat_coc DECIMAL(10,2) DEFAULT 0,
     status ENUM('cho_xac_nhan','da_xac_nhan','dang_thuc_hien','hoan_thanh','da_huy') DEFAULT 'cho_xac_nhan',
     ngay_bat_dau_thuc_te DATE,
     ngay_ket_thuc_thuc_te DATE,
     loai_phong ENUM('thuong', 'vip') DEFAULT 'thuong',
-    trang_thai_thanh_toan ENUM('chua_thanh_toan', 'da_coc_30', 'da_thanh_toan_het') DEFAULT 'chua_thanh_toan',
+    trang_thai_thanh_toan ENUM('chua_thanh_toan', 'da_coc_15', 'da_thanh_toan_het') DEFAULT 'chua_thanh_toan',
     hinh_thuc_thanh_toan ENUM('tien_mat', 'vnpay', 'momo') DEFAULT 'vnpay',
     vnpay_transaction_id VARCHAR(100),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (khach_hang_id) REFERENCES khach_hang(id) ON DELETE SET NULL,
-    FOREIGN KEY (nhan_vien_id) REFERENCES nhan_vien(id) ON DELETE SET NULL,
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE SET NULL,
     FOREIGN KEY (goi_id) REFERENCES goi_dich_vu(id) ON DELETE SET NULL
 );
 
@@ -238,12 +233,49 @@ CREATE TABLE chi_tiet_ca_lam (
     ngay_lam DATE,
     check_in DATETIME,
     check_out DATETIME,
-    status ENUM('da_nhan', 'dang_lam', 'hoan_thanh', 'da_huy') DEFAULT 'da_nhan',
+    status ENUM('cho_nhan', 'da_nhan', 'check_in', 'dang_thuc_hien', 'hoan_thanh', 'bao_loi', 'da_huy') DEFAULT 'cho_nhan',
     toa_do_check_in VARCHAR(100),
     hinh_anh_xac_nhan VARCHAR(255),
     ghi_chu TEXT,
     FOREIGN KEY (lich_hen_id) REFERENCES lich_hen(id) ON DELETE CASCADE,
-    FOREIGN KEY (nhan_vien_id) REFERENCES nhan_vien(id) ON DELETE CASCADE
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =====================
+-- 15.1.1 BẢNG CARE RECORDS
+-- =====================
+CREATE TABLE care_records (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lich_hen_id INT,
+    nhan_vien_id INT,
+    ca_lam_id INT,
+    ngay_thuc_hien DATETIME DEFAULT CURRENT_TIMESTAMP,
+    noi_dung_cham_soc TEXT,
+    tinh_trang_me TEXT,
+    tinh_trang_be TEXT,
+    ghi_chu TEXT,
+    hinh_anh VARCHAR(255),
+    FOREIGN KEY (lich_hen_id) REFERENCES lich_hen(id) ON DELETE CASCADE,
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (ca_lam_id) REFERENCES chi_tiet_ca_lam(id) ON DELETE CASCADE
+);
+
+-- =====================
+-- 15.1.2 BẢNG SỰ CỐ
+-- =====================
+CREATE TABLE su_co (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    lich_hen_id INT,
+    nhan_vien_id INT,
+    ca_lam_id INT,
+    noi_dung TEXT NOT NULL,
+    muc_do ENUM('nhe', 'trung_binh', 'nghiem_trong') DEFAULT 'nhe',
+    trang_thai ENUM('cho_xu_ly', 'dang_xu_ly', 'da_xu_ly') DEFAULT 'cho_xu_ly',
+    admin_ghi_chu TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (lich_hen_id) REFERENCES lich_hen(id) ON DELETE CASCADE,
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE SET NULL,
+    FOREIGN KEY (ca_lam_id) REFERENCES chi_tiet_ca_lam(id) ON DELETE CASCADE
 );
 
 -- =====================
@@ -254,7 +286,7 @@ CREATE TABLE lich_hen_nhan_vien (
     nhan_vien_id INT,
     PRIMARY KEY (lich_hen_id, nhan_vien_id),
     FOREIGN KEY (lich_hen_id) REFERENCES lich_hen(id) ON DELETE CASCADE,
-    FOREIGN KEY (nhan_vien_id) REFERENCES nhan_vien(id) ON DELETE CASCADE
+    FOREIGN KEY (nhan_vien_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- =====================
@@ -308,11 +340,13 @@ CREATE TABLE khuyen_mai (
 CREATE TABLE danh_gia (
     id INT AUTO_INCREMENT PRIMARY KEY,
     khach_hang_id INT,
+    user_id INT,
     goi_id INT,
     rating INT CHECK (rating >= 1 AND rating <= 5),
     comment TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (khach_hang_id) REFERENCES khach_hang(id) ON DELETE CASCADE,
+    FOREIGN KEY (khach_hang_id) REFERENCES khach_hang(id) ON DELETE SET NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     FOREIGN KEY (goi_id) REFERENCES goi_dich_vu(id) ON DELETE CASCADE
 );
 
@@ -329,6 +363,19 @@ CREATE TABLE cam_nang (
     read_time VARCHAR(50),
     image_url VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================
+-- 22. MESSAGES
+-- =====================
+CREATE TABLE messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sender_id INT,
+    receiver_id INT,
+    message TEXT NOT NULL,
+    room VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 -- =====================
@@ -354,9 +401,9 @@ INSERT INTO roles (id, name) VALUES
 (3,'khach_hang'),
 (4,'quan_ly'),
 (5,'Bác sĩ'),
-(6,'Y tá'),
-(7,'Chuyên viên tư vấn'),
-(8,'Chuyên viên kỹ thuật');
+(6,'Chuyên viên tư vấn'),
+(7,'Chuyên viên dinh dưỡng'),
+(8,'Lễ tân');
 
 -- Users (Mật khẩu: 123456)
 INSERT INTO users (id, name, email, password, phone, role_id, is_verified) VALUES 
@@ -369,18 +416,13 @@ INSERT INTO users (id, name, email, password, phone, role_id, is_verified) VALUE
 INSERT INTO khach_hang (id, user_id, dia_chi, diem_tich_luy, hang_thanh_vien) VALUES 
 (1, 3, '123 Đường ABC, Quận 1, TP.HCM', 100, 'Bạc');
 
--- Nhân viên
-INSERT INTO nhan_vien (id, user_id, chuc_vu) VALUES 
-(1, 2, 'Y tá'),
-(2, 4, 'Chuyên viên kỹ thuật');
-
 -- Em bé
 INSERT INTO em_be (id, khach_hang_id, ten, ngay_sinh) VALUES 
 (1, 1, 'Bé Bi', '2026-01-01');
 
 -- Loại dịch vụ
 INSERT INTO loai_dich_vu (id, name) VALUES 
-(1, 'Chăm sóc Bé'),
+(1, 'Bé và Mẹ'),
 (2, 'Chăm sóc Mẹ'),
 (3, 'Dưỡng sinh & Trị liệu');
 
@@ -410,7 +452,13 @@ INSERT INTO ho_so_suc_khoe (khach_hang_id, thong_tin) VALUES
 
 -- Lịch hẹn
 INSERT INTO lich_hen (id, khach_hang_id, nhan_vien_id, goi_id, ngay_bat_dau, ngay_ket_thuc, status, dia_diem, dia_chi_cu_the) VALUES 
-(1, 1, 1, 1, '2026-05-10', '2026-05-10', 'cho_xac_nhan', 'tai_nha', '123 Đường ABC, Quận 1, TP.HCM');
+(1, 1, 2, 1, '2026-05-10', '2026-05-10', 'cho_xac_nhan', 'tai_nha', '123 Đường ABC, Quận 1, TP.HCM');
+
+-- Phương thức thanh toán
+INSERT INTO phuong_thuc_tt (id, name) VALUES 
+(1,'Tiền mặt'),
+(2,'VNPay'),
+(4,'Chuyển khoản ngân hàng');
 
 -- Cẩm nang
 INSERT INTO cam_nang (title, summary, content, category, author, read_time, image_url) VALUES 

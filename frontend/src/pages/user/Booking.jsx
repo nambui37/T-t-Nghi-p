@@ -13,6 +13,9 @@ const Booking = () => {
   const [services, setServices] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,18 +26,22 @@ const Booking = () => {
     ngay_ket_thuc: "",
     loai_lich: "linh_hoat",
     dia_diem: "tai_nha",
-    loai_phong: "thuong",
-    payment_method: "momo",
+    payment_method: "online",
     ghi_chu: "",
     ngay_sinh_be: "",
     hinh_thuc_sinh: "sinh_thuong",
     tinh_trang_me: "",
+    so_luong_be: 1,
     can_nang_be: "",
-    ghi_chu_be: "",
     dia_chi_cu_the: "",
+    province: "",
+    district: "",
+    ward: "",
+    address_detail: "",
+    address_note: "",
     toa_do: "",
     agreeTerms: false,
-    online_method: "momo", // Mặc định là momo nếu chọn thanh toán online
+    online_method: "vnpay", // Mặc định là vnpay nếu chọn thanh toán online
   });
 
   const [selectedService, setSelectedService] = useState(null);
@@ -79,7 +86,72 @@ const Booking = () => {
       }
     };
     fetchServices();
+    fetchProvinces();
   }, [location.state]);
+
+  const fetchProvinces = async () => {
+    try {
+      const res = await fetch("https://provinces.open-api.vn/api/p/");
+      const data = await res.json();
+      setProvinces(data);
+    } catch (err) {
+      console.error("Lỗi tải tỉnh thành:", err);
+    }
+  };
+
+  const fetchDistricts = async (provinceCode) => {
+    try {
+      const res = await fetch(
+        `https://provinces.open-api.vn/api/p/${provinceCode}?depth=2`,
+      );
+      const data = await res.json();
+      setDistricts(data.districts);
+      setWards([]);
+    } catch (err) {
+      console.error("Lỗi tải quận huyện:", err);
+    }
+  };
+
+  const fetchWards = async (districtCode) => {
+    try {
+      const res = await fetch(
+        `https://provinces.open-api.vn/api/d/${districtCode}?depth=2`,
+      );
+      const data = await res.json();
+      setWards(data.wards);
+    } catch (err) {
+      console.error("Lỗi tải xã phường:", err);
+    }
+  };
+
+  const handleProvinceChange = (e) => {
+    const provinceCode = e.target.value;
+    const provinceName =
+      provinces.find((p) => p.code == provinceCode)?.name || "";
+    setFormData((prev) => ({
+      ...prev,
+      province: provinceName,
+      district: "",
+      ward: "",
+    }));
+    if (provinceCode) fetchDistricts(provinceCode);
+    else setDistricts([]);
+  };
+
+  const handleDistrictChange = (e) => {
+    const districtCode = e.target.value;
+    const districtName =
+      districts.find((d) => d.code == districtCode)?.name || "";
+    setFormData((prev) => ({ ...prev, district: districtName, ward: "" }));
+    if (districtCode) fetchWards(districtCode);
+    else setWards([]);
+  };
+
+  const handleWardChange = (e) => {
+    const wardCode = e.target.value;
+    const wardName = wards.find((w) => w.code == wardCode)?.name || "";
+    setFormData((prev) => ({ ...prev, ward: wardName }));
+  };
 
   // Tự động tính "Ngày kết thúc" khi chọn "Ngày bắt đầu" hoặc đổi Gói dịch vụ
   useEffect(() => {
@@ -139,7 +211,7 @@ const Booking = () => {
 
   const calculateDeposit = () => {
     if (!selectedService) return 0;
-    return Math.round(selectedService.gia * 0.3);
+    return Math.round(selectedService.gia * 0.15); // Cọc 15%
   };
 
   // Lấy ngày hiện tại để làm min date
@@ -161,16 +233,28 @@ const Booking = () => {
       return setError("Họ và tên không được để trống.");
     if (!formData.guest_phone.trim())
       return setError("Số điện thoại không được để trống.");
-    if (!formData.ngay_sinh_be)
-      return setError("Vui lòng nhập ngày sinh của bé.");
     if (!formData.goi_id) return setError("Vui lòng chọn gói dịch vụ.");
     if (!formData.ngay_bat_dau) return setError("Vui lòng chọn ngày bắt đầu.");
     if (!formData.ngay_ket_thuc)
       return setError("Vui lòng chọn ngày kết thúc.");
 
-    if (formData.dia_diem === "tai_nha" && !formData.dia_chi_cu_the.trim()) {
-      return setError("Vui lòng nhập địa chỉ cụ thể để chúng tôi đến tận nhà.");
+    if (formData.dia_diem === "tai_nha" && !formData.address_detail.trim()) {
+      return setError("Vui lòng nhập số nhà và tên đường.");
     }
+
+    // Gộp địa chỉ
+    const fullAddress =
+      formData.dia_diem === "tai_nha"
+        ? [
+            formData.address_detail,
+            formData.ward,
+            formData.district,
+            formData.province,
+            formData.address_note,
+          ]
+            .filter(Boolean)
+            .join(", ")
+        : "Tại trung tâm";
 
     if (!formData.agreeTerms) {
       return setError("Vui lòng đồng ý với Điều khoản dịch vụ.");
@@ -184,8 +268,13 @@ const Booking = () => {
       return setError("Ngày bắt đầu không thể ở quá khứ.");
     }
 
-    if (formData.can_nang_be && parseFloat(formData.can_nang_be) < 0) {
-      return setError("Cân nặng của bé không thể là số âm.");
+    if (formData.can_nang_be) {
+      const weights = formData.can_nang_be.split(",");
+      for (const w of weights) {
+        if (w && parseFloat(w) < 0) {
+          return setError("Cân nặng của bé không thể là số âm.");
+        }
+      }
     }
 
     if (!user) {
@@ -194,33 +283,60 @@ const Booking = () => {
       return;
     }
 
+    const finalData = {
+      ...formData,
+      dia_chi_cu_the: fullAddress,
+      userId: user?.id,
+    };
+
     if (formData.payment_method === "cash") {
-      handleProcessPayment("tien_mat");
+      handleProcessPayment("tien_mat", finalData);
     } else {
+      // Trước khi mở modal thanh toán, kiểm tra xem có lấy được userId không (nếu vừa login)
+      if (!user) {
+        toast.error("Vui lòng đăng nhập để tiếp tục.");
+        return;
+      }
       setShowPaymentModal(true);
     }
   };
 
-  const handleProcessPayment = async (paymentMethod) => {
+  const handleProcessPayment = async (paymentMethod, customData = null) => {
     setIsPaying(true);
     try {
       if (paymentMethod !== "tien_mat") {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
 
+      const bookingData = customData || {
+        ...formData,
+        dia_chi_cu_the:
+          formData.dia_diem === "tai_nha"
+            ? [
+                formData.address_detail,
+                formData.ward,
+                formData.district,
+                formData.province,
+                formData.address_note,
+              ]
+                .filter(Boolean)
+                .join(", ")
+            : "Tại trung tâm",
+        userId: user?.id,
+      };
+
       const generatedLichTrinh = generateRoadmap(
-        formData.ngay_bat_dau,
-        formData.ngay_ket_thuc,
+        bookingData.ngay_bat_dau,
+        bookingData.ngay_ket_thuc,
         selectedService?.name || "",
       );
 
       const res = await appointmentAPI.create({
-        ...formData,
-        userId: user?.id,
+        ...bookingData,
         lich_trinh: generatedLichTrinh,
         dat_coc: paymentMethod === "tien_mat" ? 0 : calculateDeposit(),
         trang_thai_thanh_toan:
-          paymentMethod === "tien_mat" ? "chua_thanh_toan" : "da_coc_30",
+          paymentMethod === "tien_mat" ? "chua_thanh_toan" : "da_coc_15",
         hinh_thuc_thanh_toan: paymentMethod,
       });
 
@@ -230,7 +346,7 @@ const Booking = () => {
           toast.success("Đặt lịch thành công!");
           navigate("/ho-so");
         } else {
-          toast.success("Đặt lịch thành công! Đang chuyển hướng thanh toán...");
+          toast.success("Đã tạo lịch hẹn, đang chuyển sang thanh toán...");
           navigate(`/payment/${res.data.data.id}`, {
             state: {
               amount: calculateDeposit(),
@@ -242,7 +358,10 @@ const Booking = () => {
         }
       }
     } catch (err) {
-      setError("Lỗi khi xử lý đặt lịch.");
+      console.error("Booking error:", err);
+      const msg = err.response?.data?.message || "Lỗi khi xử lý đặt lịch.";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsPaying(false);
       setShowPaymentModal(false);
@@ -277,11 +396,39 @@ const Booking = () => {
           );
           const data = await response.json();
           if (data && data.display_name) {
+            // Cố gắng trích xuất địa chỉ chi tiết hơn nếu có thể
+            const address = data.address;
+
+            // Cập nhật các trường cấu trúc
+            const pName = address.city || address.state || "";
+            const dName =
+              address.city_district || address.district || address.town || "";
+            const wName =
+              address.suburb || address.quarter || address.village || "";
+            const street = [address.house_number, address.road]
+              .filter(Boolean)
+              .join(" ");
+
             setFormData((prev) => ({
               ...prev,
-              dia_chi_cu_the: data.display_name,
+              province: pName,
+              district: dName,
+              ward: wName,
+              address_detail: street || data.display_name,
             }));
-            toast.success("Đã lấy vị trí và địa chỉ hiện tại!");
+
+            // Fetch lại danh sách district và ward dựa trên tên (nếu tìm thấy code)
+            if (pName) {
+              const p = provinces.find(
+                (p) => p.name.includes(pName) || pName.includes(p.name),
+              );
+              if (p) {
+                fetchDistricts(p.code);
+                // Đợi một chút rồi tìm district và ward (tuy nhiên fetch async nên chỉ gán text trước)
+              }
+            }
+
+            toast.success("Đã lấy vị trí và cập nhật địa chỉ!");
           } else {
             toast.success("Đã lấy được tọa độ GPS!");
           }
@@ -366,7 +513,7 @@ const Booking = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ngày sinh của bé <span className="text-red-500">*</span>
+                    Ngày sinh của bé (nếu đã sinh)
                   </label>
                   <input
                     type="date"
@@ -375,12 +522,11 @@ const Booking = () => {
                     value={formData.ngay_sinh_be}
                     onChange={handleChange}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition bg-white"
-                    required
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hình thức sinh <span className="text-red-500">*</span>
+                    Hình thức sinh
                   </label>
                   <select
                     name="hinh_thuc_sinh"
@@ -390,24 +536,67 @@ const Booking = () => {
                   >
                     <option value="sinh_thuong">Sinh thường</option>
                     <option value="sinh_mo">Sinh mổ</option>
+                    <option value="chua_sinh">Chưa sinh (Đang bầu)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cân nặng lúc sinh (kg)
+                    Số lượng bé
                   </label>
                   <input
                     type="number"
-                    step="0.1"
-                    min="0"
-                    name="can_nang_be"
-                    value={formData.can_nang_be}
-                    onChange={handleChange}
+                    name="so_luong_be"
+                    min="1"
+                    max="10"
+                    value={formData.so_luong_be}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        so_luong_be: isNaN(val) ? "" : val,
+                        can_nang_be: "",
+                      }));
+                    }}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition bg-white"
-                    placeholder="Vd: 3.2"
+                    placeholder="Nhập số lượng bé"
                   />
                 </div>
-                <div>
+
+                {/* Hiển thị các ô nhập cân nặng dựa trên số lượng bé */}
+                {formData.ngay_sinh_be &&
+                  formData.so_luong_be > 0 &&
+                  [...Array(parseInt(formData.so_luong_be))].map((_, index) => (
+                    <div key={index} className="animate-fade-in">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cân nặng bé {index + 1} lúc sinh (kg)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        placeholder={`Vd: 3.${index + 2}`}
+                        value={formData.can_nang_be.split(",")[index] || ""}
+                        onChange={(e) => {
+                          const weights = formData.can_nang_be.split(",");
+                          // Đảm bảo mảng có đủ độ dài
+                          while (weights.length < formData.so_luong_be)
+                            weights.push("");
+                          weights[index] = e.target.value;
+                          setFormData((prev) => ({
+                            ...prev,
+                            can_nang_be: weights.join(","),
+                          }));
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition bg-white"
+                      />
+                    </div>
+                  ))}
+
+                <div
+                  className={
+                    formData.so_luong_be % 2 === 0 ? "md:col-span-2" : ""
+                  }
+                >
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Tình trạng của mẹ hiện tại
                   </label>
@@ -557,79 +746,146 @@ const Booking = () => {
                   </label>
                 </div>
               </div>
-
-              {!isAtHome && (
-                <div className="animate-fade-in">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Loại phòng mong muốn
-                  </label>
-                  <select
-                    name="loai_phong"
-                    value={formData.loai_phong}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition bg-white"
-                  >
-                    <option value="thuong">Phòng thường (Cơ bản)</option>
-                    <option value="vip">Phòng VIP (Cao cấp + Tiện nghi)</option>
-                  </select>
-                </div>
-              )}
             </div>
 
             {/* Địa chỉ cụ thể (Hiển thị khi chọn Tại nhà) */}
             {isAtHome && (
-              <div className="animate-fade-in space-y-3">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Địa chỉ cụ thể <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="dia_chi_cu_the"
-                    value={formData.dia_chi_cu_the}
-                    onChange={handleChange}
-                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
-                    className="w-full pl-4 pr-32 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 outline-none transition"
-                    required
-                  />
+              <div className="animate-fade-in space-y-6 bg-gray-50/50 p-6 rounded-2xl border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    📍 Địa chỉ của bạn
+                  </h3>
                   <button
                     type="button"
                     onClick={handleGetCurrentLocation}
                     disabled={isLocating}
-                    className={`absolute right-2 top-1.5 bottom-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center gap-1 border ${
-                      isLocating
-                        ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
-                        : "bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-100"
-                    }`}
+                    className="px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 border bg-white text-pink-600 border-pink-200 hover:bg-pink-50 shadow-sm"
                   >
                     {isLocating ? (
                       <>
                         <div className="w-3 h-3 border-2 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-                        Đang lấy...
+                        Đang định vị...
                       </>
                     ) : (
-                      <>📍 Vị trí hiện tại</>
+                      <>🛰️ Lấy vị trí GPS</>
                     )}
                   </button>
                 </div>
-                <p className="text-[10px] text-gray-500 italic">
-                  * Bạn có thể nhập tay hoặc nhấn "Chọn trên bản đồ" để lấy vị
-                  trí chính xác nhất.
-                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                      Tỉnh / Thành phố
+                    </label>
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 outline-none bg-white text-sm"
+                      onChange={handleProvinceChange}
+                      value={
+                        provinces.find((p) => p.name === formData.province)
+                          ?.code || ""
+                      }
+                    >
+                      <option value="">-- Chọn Tỉnh --</option>
+                      {provinces.map((p) => (
+                        <option key={p.code} value={p.code}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                      Quận / Huyện
+                    </label>
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 outline-none bg-white text-sm"
+                      onChange={handleDistrictChange}
+                      disabled={!formData.province}
+                      value={
+                        districts.find((d) => d.name === formData.district)
+                          ?.code || ""
+                      }
+                    >
+                      <option value="">-- Chọn Huyện --</option>
+                      {districts.map((d) => (
+                        <option key={d.code} value={d.code}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                      Xã / Phường
+                    </label>
+                    <select
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 outline-none bg-white text-sm"
+                      onChange={handleWardChange}
+                      disabled={!formData.district}
+                      value={
+                        wards.find((w) => w.name === formData.ward)?.code || ""
+                      }
+                    >
+                      <option value="">-- Chọn Xã --</option>
+                      {wards.map((w) => (
+                        <option key={w.code} value={w.code}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                    🏠 Số nhà, tên đường
+                  </label>
+                  <input
+                    type="text"
+                    name="address_detail"
+                    value={formData.address_detail}
+                    onChange={handleChange}
+                    placeholder="Ví dụ: 123 Nguyễn Văn Cừ, Tòa nhà ABC, Căn hộ 405..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 outline-none bg-white text-sm"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase">
+                    📝 Ghi chú địa chỉ (Tùy chọn)
+                  </label>
+                  <input
+                    type="text"
+                    name="address_note"
+                    value={formData.address_note}
+                    onChange={handleChange}
+                    placeholder="Ví dụ: Nhà màu xanh, đối diện cây xăng, hẻm cạnh quán cafe..."
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-500 outline-none bg-white text-sm"
+                  />
+                </div>
 
                 {/* Preview Map (Google Maps Iframe) */}
-                {formData.dia_chi_cu_the && (
-                  <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 h-48 animate-fade-in shadow-inner relative group">
+                {(formData.address_detail || formData.ward) && (
+                  <div className="rounded-2xl overflow-hidden border border-gray-200 h-40 animate-fade-in shadow-inner relative group">
                     <iframe
                       title="Google Maps Preview"
                       width="100%"
                       height="100%"
                       frameBorder="0"
                       style={{ border: 0 }}
-                      src={`https://www.google.com/maps?q=${encodeURIComponent(formData.dia_chi_cu_the)}&output=embed`}
+                      src={`https://www.google.com/maps?q=${encodeURIComponent(
+                        [
+                          formData.address_detail,
+                          formData.ward,
+                          formData.district,
+                          formData.province,
+                        ]
+                          .filter(Boolean)
+                          .join(", "),
+                      )}&output=embed`}
                       allowFullScreen
                     ></iframe>
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition pointer-events-none"></div>
                   </div>
                 )}
               </div>
@@ -653,10 +909,7 @@ const Booking = () => {
                     type="radio"
                     name="payment_method"
                     value="online"
-                    checked={
-                      formData.payment_method === "online" ||
-                      formData.payment_method === "momo"
-                    }
+                    checked={formData.payment_method === "online"}
                     onChange={handleChange}
                     className="w-5 h-5 text-pink-500 focus:ring-pink-500 border-gray-300"
                   />
@@ -665,48 +918,8 @@ const Booking = () => {
                       Thanh toán Online
                     </span>
                     <span className="block text-xs text-gray-500">
-                      Thanh toán cọc 30% qua Momo/VNPay
+                      Thanh toán cọc 15% qua VNPay
                     </span>
-
-                    {(formData.payment_method === "online" ||
-                      formData.payment_method === "momo") && (
-                      <div className="mt-3 grid grid-cols-2 gap-2 animate-fade-in">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              online_method: "momo",
-                              payment_method: "online",
-                            }))
-                          }
-                          className={`flex items-center justify-center p-2 rounded-lg border ${formData.online_method === "momo" ? "border-pink-500 bg-pink-50" : "border-gray-200"}`}
-                        >
-                          <img
-                            src="https://upload.wikimedia.org/wikipedia/vi/f/fe/MoMo_Logo.png"
-                            alt="Momo"
-                            className="h-6"
-                          />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setFormData((prev) => ({
-                              ...prev,
-                              online_method: "vnpay",
-                              payment_method: "online",
-                            }))
-                          }
-                          className={`flex items-center justify-center p-2 rounded-lg border ${formData.online_method === "vnpay" ? "border-blue-500 bg-blue-50" : "border-gray-200"}`}
-                        >
-                          <img
-                            src="https://vnpay.vn/wp-content/uploads/2020/07/Logo-VNPAY-QR.png"
-                            alt="VNPay"
-                            className="h-4"
-                          />
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </label>
 
@@ -786,29 +999,27 @@ const Booking = () => {
             </div>
 
             {/* Hiển thị tiền cọc (Chỉ khi chọn Online) */}
-            {selectedService &&
-              (formData.payment_method === "momo" ||
-                formData.payment_method === "online") && (
-                <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center justify-between animate-fade-in">
-                  <div>
-                    <p className="text-indigo-900 font-bold text-lg">
-                      Tiền cọc cần thanh toán (30%)
-                    </p>
-                    <p className="text-sm text-indigo-600">
-                      * Bạn có thể chọn cổng thanh toán Momo hoặc VNPay ở bước
-                      tiếp theo để thanh toán cọc.
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-black text-indigo-700">
-                      {calculateDeposit().toLocaleString()}đ
-                    </p>
-                    <p className="text-xs text-gray-500 line-through">
-                      Tổng: {selectedService.gia.toLocaleString()}đ
-                    </p>
-                  </div>
+            {selectedService && formData.payment_method === "online" && (
+              <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 flex items-center justify-between animate-fade-in">
+                <div>
+                  <p className="text-indigo-900 font-bold text-lg">
+                    Tiền cọc cần thanh toán (15%)
+                  </p>
+                  <p className="text-sm text-indigo-600">
+                    * Bạn có thể chọn cổng thanh toán VNPay ở bước tiếp theo để
+                    thanh toán cọc.
+                  </p>
                 </div>
-              )}
+                <div className="text-right">
+                  <p className="text-2xl font-black text-indigo-700">
+                    {calculateDeposit().toLocaleString()}đ
+                  </p>
+                  <p className="text-xs text-gray-500 line-through">
+                    Tổng: {selectedService.gia.toLocaleString()}đ
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Hiển thị tổng tiền (Nếu chọn Tiền mặt) */}
             {selectedService && formData.payment_method === "cash" && (
@@ -847,8 +1058,7 @@ const Booking = () => {
               >
                 {isLoading
                   ? "Đang xử lý..."
-                  : formData.payment_method === "momo" ||
-                      formData.payment_method === "online"
+                  : formData.payment_method === "online"
                     ? "Thanh Toán Cọc & Đặt Lịch"
                     : "Xác Nhận Đặt Lịch"}
               </button>
@@ -867,7 +1077,7 @@ const Booking = () => {
               </div>
               <h3 className="text-2xl font-bold">Thanh toán đặt cọc</h3>
               <p className="opacity-90 text-sm mt-1">
-                Vui lòng chọn phương thức thanh toán 30% để hoàn tất
+                Vui lòng chọn phương thức thanh toán 15% để hoàn tất
               </p>
             </div>
 
@@ -887,7 +1097,7 @@ const Booking = () => {
                 </div>
                 <div className="border-t border-dashed border-gray-200 pt-3 flex justify-between items-center">
                   <span className="text-gray-900 font-bold">
-                    Tiền cọc (30%)
+                    Tiền cọc (15%)
                   </span>
                   <span className="text-2xl font-black text-indigo-600">
                     {calculateDeposit().toLocaleString()}đ
@@ -896,20 +1106,6 @@ const Booking = () => {
               </div>
 
               <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => handleProcessPayment("momo")}
-                  disabled={isPaying}
-                  className="w-full bg-[#A50064] text-white py-4 rounded-2xl font-bold hover:bg-[#8A0053] transition shadow-lg flex items-center justify-center gap-2"
-                >
-                  {isPaying ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Đang kết nối...
-                    </>
-                  ) : (
-                    "Thanh toán qua Momo"
-                  )}
-                </button>
                 <button
                   onClick={() => handleProcessPayment("vnpay")}
                   disabled={isPaying}

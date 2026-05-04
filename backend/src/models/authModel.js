@@ -145,13 +145,6 @@ const AuthModel = {
     
     if (parseInt(role_id) === 3) {
       await db.query("INSERT INTO khach_hang (user_id) VALUES (?)", [result.insertId]);
-    } else if ([2, 4, 5, 6, 7, 8].includes(parseInt(role_id))) {
-      const chuc_vu_map = {
-        2: "Nhân viên", 4: "Chuyên gia", 5: "Bác sĩ", 6: "Y tá", 7: "Chuyên viên tư vấn", 8: "Chuyên viên kỹ thuật",
-      };
-      await db.query("INSERT INTO nhan_vien (user_id, chuc_vu) VALUES (?, ?)", [
-        result.insertId, chuc_vu_map[role_id] || "Nhân viên",
-      ]);
     }
     return result.insertId;
   },

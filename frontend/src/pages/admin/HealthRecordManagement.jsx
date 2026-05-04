@@ -176,7 +176,7 @@ const HealthRecordManagement = () => {
                   </button>
                 </div>
               </div>
-              <div className="bg-gray-50 p-4 rounded-xl text-gray-600 text-sm whitespace-pre-wrap min-h-[100px] line-clamp-4 border border-gray-100">
+              <div className="bg-gray-50 p-4 rounded-xl text-gray-600 text-sm whitespace-pre-wrap min-h-25 line-clamp-4 border border-gray-100">
                 {record.thong_tin || "Chưa có thông tin chi tiết."}
               </div>
             </div>
@@ -452,7 +452,7 @@ const HealthRecordManagement = () => {
                               <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse"></span>
                               Lộ trình dự kiến chi tiết
                             </p>
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="space-y-3 max-h-100 overflow-y-auto pr-2 custom-scrollbar">
                               {apt.lich_trinh?.map((item, i) => (
                                 <div
                                   key={i}

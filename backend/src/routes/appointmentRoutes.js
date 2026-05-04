@@ -50,6 +50,9 @@ router.post(
 
 router.delete("/:id", authMiddleware.verifyToken, appointmentController.delete);
 
+// Hủy lịch hẹn (dành cho khách hàng)
+router.put("/:id/cancel", authMiddleware.verifyToken, appointmentController.cancel);
+
 // Cập nhật trạng thái lịch hẹn
 router.put(
   "/:id/status",
@@ -70,6 +73,13 @@ router.put(
   ],
   validate,
   appointmentController.addNote
+);
+
+// Route phân việc cho nhân viên (Admin/Quản lý)
+router.put(
+  "/:id/assign",
+  authMiddleware.verifyToken,
+  appointmentController.assignEmployee
 );
 
 module.exports = router;

@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 
 const Header = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const { user, logout } = useAuth();
   const isLoggedIn = !!user;
   const navigate = useNavigate();
@@ -14,47 +15,100 @@ const Header = () => {
     navigate("/login");
   };
 
+  const handleSearch = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+
+    // Tìm kiếm tức thì: Nếu ở trang dịch vụ thì cập nhật URL ngay
+    if (location.pathname === "/dich-vu") {
+      navigate(`/dich-vu?search=${encodeURIComponent(value.trim())}`, {
+        replace: true,
+      });
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === "Enter" && searchTerm.trim()) {
+      if (location.pathname !== "/dich-vu") {
+        navigate(`/dich-vu?search=${encodeURIComponent(searchTerm.trim())}`);
+      }
+    }
+  };
+
   const isActive = (path) => location.pathname === path;
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20 items-center">
+        <div className="flex justify-between h-16 items-center gap-4">
           <Link to="/" className="shrink-0 flex items-center gap-2">
             <img
               src="https://png.pngtree.com/png-clipart/20240406/original/pngtree-mother-hugging-her-son-png-image_14768495.png"
               alt="Mom&Baby Logo"
-              className="w-10 h-10 object-contain"
+              className="w-8 h-8 object-contain"
             />
-            <span className="text-3xl font-bold text-pink-500">Mom&Baby</span>
+            <span className="text-xl lg:text-2xl font-bold text-pink-500 truncate">
+              Mom&Baby
+            </span>
           </Link>
-          <nav className="hidden md:flex space-x-8">
+
+          <nav className="hidden md:flex items-center space-x-4 lg:space-x-8 flex-1 justify-center">
             <Link
               to="/"
-              className={`${isActive("/") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
+              className={`${isActive("/") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition text-sm lg:text-base whitespace-nowrap`}
             >
               Trang chủ
             </Link>
             <Link
               to="/dich-vu"
-              className={`${isActive("/dich-vu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
+              className={`${isActive("/dich-vu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition text-sm lg:text-base whitespace-nowrap`}
             >
               Dịch vụ
             </Link>
             <Link
               to="/doi-ngu"
-              className={`${isActive("/doi-ngu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
+              className={`${isActive("/doi-ngu") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition text-sm lg:text-base whitespace-nowrap`}
             >
               Đội ngũ
             </Link>
             <Link
               to="/cam-nang"
-              className={`${isActive("/cam-nang") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition`}
+              className={`${isActive("/cam-nang") ? "text-pink-500 border-b-2 border-pink-500" : "text-gray-600 hover:text-pink-500"} font-medium transition text-sm lg:text-base whitespace-nowrap`}
             >
               Cẩm nang
             </Link>
+
+            {/* Search Bar */}
+            <div className="hidden lg:flex items-center relative group">
+              <div className="relative w-48 xl:w-64">
+                <input
+                  type="text"
+                  placeholder="Tìm theo tên, mô tả..."
+                  value={searchTerm}
+                  onChange={handleSearch}
+                  onKeyDown={handleSearchSubmit}
+                  className="w-full bg-gray-100 border border-transparent rounded-full py-1.5 pl-10 pr-4 focus:ring-2 focus:ring-pink-300 focus:bg-white focus:border-pink-200 transition-all text-sm outline-none"
+                />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-pink-500 transition-colors">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </nav>
-          <div className="hidden md:flex items-center space-x-4">
+
+          <div className="hidden md:flex items-center space-x-3 lg:space-x-4 shrink-0">
             {!isLoggedIn ? (
               <Link
                 to="/login"
@@ -69,7 +123,7 @@ const Header = () => {
                     to="/admin"
                     className="text-indigo-600 font-bold hover:text-indigo-700 transition text-sm bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100 flex items-center gap-1"
                   >
-                    <span>⚙️</span> Trang quản trị
+                    <span>⚙️</span>
                   </Link>
                 )}
                 <Link
@@ -99,7 +153,7 @@ const Header = () => {
             )}
             <Link
               to="/dat-lich"
-              className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-full font-semibold transition shadow-md hover:shadow-lg block"
+              className="bg-pink-500 hover:bg-pink-600 text-white px-4 lg:px-6 py-2 rounded-full font-semibold transition shadow-md hover:shadow-lg block text-sm lg:text-base whitespace-nowrap"
             >
               Đặt Lịch Hẹn
             </Link>

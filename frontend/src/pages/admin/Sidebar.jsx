@@ -39,7 +39,7 @@ const Sidebar = () => {
       path: "/admin/ca-lam",
       icon: "⏰",
       label: "Lịch làm việc",
-      roles: [2, 4, 5, 6, 7, 8],
+      roles: [2, 5, 6, 7, 8], // Admin (1) và Quản lý (4) không có lịch làm việc riêng
     },
     {
       path: "/admin/bai-viet",
@@ -73,6 +73,12 @@ const Sidebar = () => {
       roles: [1, 4],
     },
     {
+      path: "/admin/su-co",
+      icon: "🚨",
+      label: "Quản lý sự cố",
+      roles: [1, 4],
+    },
+    {
       path: "/admin/tai-khoan",
       icon: "🔑",
       label: "Quản lý tài khoản",
@@ -93,6 +99,7 @@ const Sidebar = () => {
 
   const handleLogout = async () => {
     await logout();
+    localStorage.removeItem("token");
     toast.success("Đăng xuất thành công");
     navigate("/login");
   };

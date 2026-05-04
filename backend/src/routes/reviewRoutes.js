@@ -69,7 +69,16 @@ router.get("/all", authMiddleware.verifyAdmin, async (req, res) => {
        LEFT JOIN goi_dich_vu g ON dg.goi_id = g.id
        ORDER BY dg.created_at DESC`
     );
-    res.status(200).json({ success: true, data: rows });
+    
+    // Xử lý đường dẫn avatar cho admin
+    const processedRows = rows.map(row => {
+      if (row.customer_avatar && !row.customer_avatar.startsWith('http')) {
+        row.customer_avatar = `${process.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001"}${row.customer_avatar}`;
+      }
+      return row;
+    });
+
+    res.status(200).json({ success: true, data: processedRows });
   } catch (error) {
     console.error("Lỗi lấy danh sách đánh giá:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -89,7 +98,16 @@ router.get("/service/:goiId", async (req, res) => {
        ORDER BY dg.id DESC`,
       [goiId]
     );
-    res.status(200).json({ success: true, data: rows });
+
+    // Xử lý đường dẫn avatar cho danh sách review theo dịch vụ
+    const processedRows = rows.map(row => {
+      if (row.customer_avatar && !row.customer_avatar.startsWith('http')) {
+        row.customer_avatar = `${process.env.VITE_API_URL?.replace("/api", "") || "http://localhost:5001"}${row.customer_avatar}`;
+      }
+      return row;
+    });
+
+    res.status(200).json({ success: true, data: processedRows });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
