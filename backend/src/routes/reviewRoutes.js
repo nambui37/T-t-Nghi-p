@@ -56,6 +56,40 @@ router.post("/", authMiddleware.verifyToken, async (req, res) => {
   }
 });
 
+// User Route: Cập nhật đánh giá (trong vòng 24h)
+router.put("/:id", authMiddleware.verifyToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    const reviewId = req.params.id;
+    const userId = req.user.id;
+
+    // 1. Tìm đánh giá
+    const [reviews] = await db.query("SELECT * FROM danh_gia WHERE id = ?", [reviewId]);
+    if (reviews.length === 0) {
+      return res.status(404).json({ success: false, message: "Không tìm thấy đánh giá." });
+    }
+    
+    const review = reviews[0];
+    if (review.user_id !== userId) {
+      return res.status(403).json({ success: false, message: "Bạn không có quyền chỉnh sửa đánh giá này." });
+    }
+
+    // 2. Kiểm tra thời gian (24h)
+    const reviewDate = new Date(review.created_at).getTime();
+    const now = new Date().getTime();
+    if (now - reviewDate > 24 * 60 * 60 * 1000) {
+      return res.status(400).json({ success: false, message: "Đã quá 24h, bạn không thể chỉnh sửa đánh giá này nữa." });
+    }
+
+    // 3. Cập nhật
+    await db.query("UPDATE danh_gia SET rating = ?, comment = ? WHERE id = ?", [rating, comment, reviewId]);
+    res.status(200).json({ success: true, message: "Cập nhật đánh giá thành công!" });
+  } catch (error) {
+    console.error("Lỗi cập nhật đánh giá:", error);
+    res.status(500).json({ success: false, message: "Lỗi hệ thống khi cập nhật đánh giá." });
+  }
+});
+
 // Admin Route: Lấy tất cả đánh giá
 router.get("/all", authMiddleware.verifyAdmin, async (req, res) => {
   try {

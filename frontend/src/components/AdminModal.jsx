@@ -138,11 +138,11 @@ export const FormSelect = ({
         error
           ? "border-red-500 focus:ring-4 focus:ring-red-100"
           : "border-gray-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
-      }`}
+      } ${props.disabled ? "opacity-60 cursor-not-allowed" : ""}`}
       {...props}
     >
       {options.map((opt) => (
-        <option key={opt.value} value={opt.value}>
+        <option key={opt.value} value={opt.value} disabled={opt.disabled}>
           {opt.label}
         </option>
       ))}

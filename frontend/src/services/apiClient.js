@@ -27,7 +27,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("token");
-    if (token) {
+    if (token && token !== "null" && token !== "undefined") {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
@@ -143,6 +143,7 @@ export const userAPI = {
 
 // 7. Ca làm việc (Shifts)
 export const shiftAPI = {
+  getUpcoming: (params) => apiClient.get("/shifts/upcoming", { params }),
   getAvailable: () => apiClient.get("/shifts/available"),
   accept: (lichHenId) => apiClient.post("/shifts/accept", { lichHenId }),
   checkIn: (data) => apiClient.post("/shifts/check-in", data),

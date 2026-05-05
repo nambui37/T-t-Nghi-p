@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { userAPI } from "../../services/apiClient";
 import toast from "react-hot-toast";
 import AdminModal, { FormInput, FormSelect } from "../../components/AdminModal";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -158,6 +161,18 @@ const UserManagement = () => {
     { value: "bi_khoa", label: "Bị khóa" },
   ];
 
+  const filteredUsers = useMemo(() => {
+    if (!debouncedSearch.trim()) return users;
+    const q = debouncedSearch.toLowerCase().trim();
+    return users.filter(
+      (u) =>
+        String(u.id).includes(q) ||
+        u.name?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        u.phone?.includes(q),
+    );
+  }, [users, debouncedSearch]);
+
   if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
     return (
       <div className="text-center py-20">
@@ -185,6 +200,16 @@ const UserManagement = () => {
         </button>
       </div>
 
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <input
+          type="text"
+          placeholder="Tìm mã, tên, email, SĐT..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-xl w-full max-w-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -208,8 +233,17 @@ const UserManagement = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
                   </td>
                 </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-6 py-10 text-center text-gray-500"
+                  >
+                    Không có tài khoản khớp bộ lọc.
+                  </td>
+                </tr>
               ) : (
-                users.map((u) => (
+                filteredUsers.map((u) => (
                   <tr key={u.id} className="hover:bg-indigo-50/30 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">

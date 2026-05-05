@@ -5,7 +5,7 @@ const employeeController = {
   getAll: async (req, res) => {
     try {
       const [employees] = await db.query(`
-        SELECT u.id, u.name, u.email, u.phone, u.status, u.avatar, r.name as role_name 
+        SELECT u.id, u.name, u.email, u.phone, u.status, u.avatar, u.role_id, r.name as role_name 
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         WHERE u.role_id IS NOT NULL AND u.role_id != 3
@@ -27,7 +27,9 @@ const employeeController = {
       const [rows] = await db.query(`
         SELECT 
           u.id, u.name, r.name as role_name,
-          (SELECT COUNT(*) FROM chi_tiet_ca_lam WHERE nhan_vien_id = u.id AND status = 'hoan_thanh') as shifts_completed
+          (SELECT COUNT(*) FROM chi_tiet_ca_lam ct
+           INNER JOIN nhan_vien nv ON nv.id = ct.nhan_vien_id
+           WHERE nv.user_id = u.id AND ct.status = 'hoan_thanh') as shifts_completed
         FROM users u
         JOIN roles r ON u.role_id = r.id
         WHERE u.role_id != 3

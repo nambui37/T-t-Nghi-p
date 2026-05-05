@@ -128,7 +128,7 @@ const Dashboard = () => {
                 stats.recentAppointments.map((apt) => (
                   <tr key={apt.id} className="hover:bg-pink-50/30 transition">
                     <td className="px-6 py-4 font-bold text-gray-900">
-                      #LH{apt.id}
+                      {apt.id}
                     </td>
                     <td className="px-6 py-4">
                       {apt.guest_name || "Khách hàng"}

@@ -8,27 +8,31 @@ const AIChatbot = () => {
   const [inputMessage, setInputMessage] = useState("");
   const [messages, setMessages] = useState([
     {
-      text: "Chào mẹ! Mình là Trợ lý AI của Mom&Baby 🌸. Mình có thể giúp gì cho mẹ và bé hôm nay ạ?",
+      text: "Chào bạn! Mình là Trợ lý AI của Mom&Baby 🌸. Mình có thể giúp gì cho bạn và bé hôm nay ạ?",
       isBot: true,
     },
   ]);
   const messagesEndRef = useRef(null);
 
+  const suggestedQuestions = [
+    "Bảng giá dịch vụ như thế nào?",
+    "Hướng dẫn mình cách đặt lịch",
+    "Có những gói chăm sóc bé nào?",
+  ];
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isChatOpen]);
 
-  // Chỉ hiển thị trong trang Hồ sơ
-  if (location.pathname !== "/ho-so") return null;
+  const handleSendMessage = async (e, suggestedText = null) => {
+    if (e) e.preventDefault();
+    const userText = suggestedText || inputMessage;
+    if (!userText.trim()) return;
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-
-    const userText = inputMessage;
     const newMessages = [...messages, { text: userText, isBot: false }];
     setMessages(newMessages);
-    setInputMessage("");
+
+    if (!suggestedText) setInputMessage("");
 
     setMessages((prev) => [
       ...prev,
@@ -37,7 +41,7 @@ const AIChatbot = () => {
 
     try {
       const response = await chatbotAPI.chat(userText);
-      let botReply = "Xin lỗi mẹ, AI đang bận chút xíu. Mẹ thử lại nhé!";
+      let botReply = "Xin lỗi bạn, AI đang bận chút xíu. Bạn thử lại nhé!";
       if (response.data.success) {
         botReply = response.data.reply;
       }
@@ -51,12 +55,17 @@ const AIChatbot = () => {
       setMessages((prev) => [
         ...prev.filter((msg) => !msg.isLoading),
         {
-          text: "Xin lỗi mẹ, không thể kết nối tới máy chủ AI lúc này.",
+          text: "Xin lỗi bạn, không thể kết nối tới máy chủ AI lúc này.",
           isBot: true,
         },
       ]);
     }
   };
+
+  // Ẩn chatbot AI nếu đang ở các trang quản trị (Admin)
+  if (location.pathname.startsWith("/admin")) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 right-24 z-50 flex flex-col items-end">
@@ -95,6 +104,21 @@ const AIChatbot = () => {
                 </div>
               </div>
             ))}
+
+            {/* Hiển thị câu hỏi gợi ý nếu mới bắt đầu trò chuyện */}
+            {messages.length === 1 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {suggestedQuestions.map((q, i) => (
+                  <button
+                    key={i}
+                    onClick={() => handleSendMessage(null, q)}
+                    className="text-xs bg-pink-100 text-pink-600 px-3 py-1.5 rounded-full hover:bg-pink-200 transition text-left font-medium"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
@@ -106,7 +130,7 @@ const AIChatbot = () => {
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Nhập câu hỏi của mẹ..."
+              placeholder="Nhập câu hỏi của bạn..."
               className="flex-1 px-4 py-2 border border-gray-200 rounded-full focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 text-sm transition"
             />
             <button

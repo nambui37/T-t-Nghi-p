@@ -21,6 +21,15 @@ const StatsModel = {
       AND lh.trang_thai_thanh_toan != 'da_thanh_toan_het'
     `);
 
+    // Doanh thu từ tiền cọc của lịch hẹn bị hủy (khách không được hoàn cọc)
+    const [canceledRevenue] = await db.query(`
+      SELECT SUM(dat_coc) as total 
+      FROM lich_hen 
+      WHERE status = 'da_huy' 
+      AND trang_thai_thanh_toan IN ('da_coc_15', 'da_thanh_toan_het')
+      AND MONTH(created_at) = MONTH(CURDATE()) AND YEAR(created_at) = YEAR(CURDATE())
+    `);
+
     // 3. Khách hàng mới tháng này (Bao gồm User và Guest)
     const [newCustomers] = await db.query(`
       SELECT (
@@ -32,7 +41,7 @@ const StatsModel = {
 
     // 4. Nhân viên hoạt động
     const [activeEmployees] = await db.query(
-      "SELECT COUNT(*) as total FROM nhan_vien"
+      "SELECT COUNT(*) as total FROM users WHERE role_id IN (2, 4, 5, 6, 7, 8) AND status = 'hoat_dong'"
     );
 
     // 5. Lịch hẹn gần đây (chờ xác nhận)
@@ -47,7 +56,7 @@ const StatsModel = {
 
     return {
       todayAppointments: todayApts[0].total || 0,
-      monthlyRevenue: (monthlyRevenue[0].total || 0) + (estimatedRevenue[0].total || 0),
+      monthlyRevenue: (monthlyRevenue[0].total || 0) + (estimatedRevenue[0].total || 0) + (canceledRevenue[0].total || 0),
       newCustomers: newCustomers[0].total || 0,
       activeEmployees: activeEmployees[0].total || 0,
       recentAppointments: recentApts
@@ -75,6 +84,15 @@ const StatsModel = {
         AND lh.trang_thai_thanh_toan = 'chua_thanh_toan'
         AND YEAR(lh.ngay_ket_thuc_thuc_te) = YEAR(CURDATE())
         GROUP BY MONTH(lh.ngay_ket_thuc_thuc_te)
+        
+        UNION ALL
+        
+        -- Doanh thu từ tiền cọc của lịch bị hủy
+        SELECT MONTH(created_at) as month, SUM(dat_coc) as revenue
+        FROM lich_hen
+        WHERE status = 'da_huy' AND trang_thai_thanh_toan IN ('da_coc_15', 'da_thanh_toan_het')
+        AND YEAR(created_at) = YEAR(CURDATE())
+        GROUP BY MONTH(created_at)
       ) as combined_revenue
       GROUP BY month
       ORDER BY month

@@ -19,6 +19,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        const token = localStorage.getItem("token");
+        // Tránh gọi API profile gây lỗi 401 nếu chưa có token (khách vãng lai)
+        if (!token || token === "null" || token === "undefined") {
+          setUser(null);
+          localStorage.removeItem("user");
+          setLoading(false);
+          return;
+        }
+
         const response = await authAPI.getProfile();
         if (response.data.success) {
           setUser(response.data.data);
@@ -44,9 +53,12 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
-  const login = (userData) => {
+  const login = (userData, token) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
+    if (token) {
+      localStorage.setItem("token", token);
+    }
   };
 
   const updateUser = (userData) => {

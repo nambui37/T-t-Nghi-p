@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { userAPI } from "../../services/apiClient";
 import { AdminModal } from "../../components/AdminModal";
 
@@ -6,15 +7,12 @@ const Customers = () => {
   const [customers, setCustomers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
-    if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
-      setIsLoading(false);
-      return;
-    }
     fetchCustomers();
   }, []);
 
@@ -36,20 +34,16 @@ const Customers = () => {
     setIsDetailModalOpen(true);
   };
 
-  const filteredCustomers = customers.filter(
-    (c) =>
-      c.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.phone?.includes(searchTerm) ||
-      c.email?.toLowerCase().includes(searchTerm.toLowerCase()),
+  const filteredCustomers = useMemo(
+    () =>
+      customers.filter(
+        (c) =>
+          c.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+          c.phone?.includes(debouncedSearch) ||
+          c.email?.toLowerCase().includes(debouncedSearch.toLowerCase()),
+      ),
+    [customers, debouncedSearch],
   );
-
-  if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-gray-500">Bạn không có quyền truy cập trang này.</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 animate-fade-in-up">

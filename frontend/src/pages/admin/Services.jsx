@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { serviceAPI } from "../../services/apiClient";
 import toast from "react-hot-toast";
 import AdminModal, {
@@ -9,6 +10,8 @@ import AdminModal, {
 
 const Services = () => {
   const [services, setServices] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -116,6 +119,17 @@ const Services = () => {
     }
   };
 
+  const filteredServices = useMemo(() => {
+    if (!debouncedSearch.trim()) return services;
+    const q = debouncedSearch.toLowerCase().trim();
+    return services.filter(
+      (s) =>
+        s.name?.toLowerCase().includes(q) ||
+        String(s.id).includes(q) ||
+        (s.mo_ta && s.mo_ta.toLowerCase().includes(q)),
+    );
+  }, [services, debouncedSearch]);
+
   const loaiOptions = [
     { value: 1, label: "Chăm sóc Bé" },
     { value: 2, label: "Chăm sóc Mẹ" },
@@ -141,13 +155,27 @@ const Services = () => {
         )}
       </div>
 
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <input
+          type="text"
+          placeholder="Tìm theo tên dịch vụ, mã, mô tả..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-xl w-full max-w-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
           <div className="col-span-full py-20 text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
           </div>
+        ) : filteredServices.length === 0 ? (
+          <div className="col-span-full py-16 text-center text-gray-500 border border-dashed border-gray-200 rounded-2xl">
+            Không có dịch vụ khớp từ khóa.
+          </div>
         ) : (
-          services.map((service) => (
+          filteredServices.map((service) => (
             <div
               key={service.id}
               className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition group"

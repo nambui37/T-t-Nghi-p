@@ -334,9 +334,8 @@ const Booking = () => {
       const res = await appointmentAPI.create({
         ...bookingData,
         lich_trinh: generatedLichTrinh,
-        dat_coc: paymentMethod === "tien_mat" ? 0 : calculateDeposit(),
-        trang_thai_thanh_toan:
-          paymentMethod === "tien_mat" ? "chua_thanh_toan" : "da_coc_15",
+        dat_coc: calculateDeposit(),
+        trang_thai_thanh_toan: "chua_thanh_toan", // Ban đầu luôn là chưa thanh toán cho cả 2 phương thức
         hinh_thuc_thanh_toan: paymentMethod,
       });
 
@@ -346,7 +345,7 @@ const Booking = () => {
           toast.success("Đặt lịch thành công!");
           navigate("/ho-so");
         } else {
-          toast.success("Đã tạo lịch hẹn, đang chuyển sang thanh toán...");
+          toast.success("Đang khởi tạo cổng thanh toán...");
           navigate(`/payment/${res.data.data.id}`, {
             state: {
               amount: calculateDeposit(),
@@ -1026,15 +1025,18 @@ const Booking = () => {
               <div className="bg-green-50 p-6 rounded-2xl border border-green-100 flex items-center justify-between animate-fade-in">
                 <div>
                   <p className="text-green-900 font-bold text-lg">
-                    Tổng số tiền thanh toán
+                    Tiền cọc cần thanh toán (15%)
                   </p>
                   <p className="text-sm text-green-600">
-                    * Thanh toán trực tiếp khi thực hiện dịch vụ.
+                    * Vui lòng thanh toán cọc bằng tiền mặt tại quầy.
                   </p>
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-black text-green-700">
-                    {selectedService.gia.toLocaleString()}đ
+                    {calculateDeposit().toLocaleString()}đ
+                  </p>
+                  <p className="text-xs text-gray-500 line-through">
+                    Tổng: {selectedService.gia.toLocaleString()}đ
                   </p>
                 </div>
               </div>

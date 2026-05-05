@@ -98,7 +98,7 @@ const IncidentManagement = () => {
                   <tr key={inc.id} className="hover:bg-gray-50/50 transition">
                     <td className="px-6 py-4 text-xs">{new Date(inc.created_at).toLocaleString()}</td>
                     <td className="px-6 py-4">
-                      <p className="font-bold text-indigo-600">#{inc.lich_hen_id}</p>
+                      <p className="font-bold text-indigo-600">{inc.lich_hen_id}</p>
                       <p className="text-[10px] text-gray-400">{inc.guest_name}</p>
                     </td>
                     <td className="px-6 py-4 font-medium">{inc.nhan_vien_name}</td>

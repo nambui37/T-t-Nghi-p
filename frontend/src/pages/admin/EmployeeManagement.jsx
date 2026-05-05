@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { employeeAPI } from "../../services/apiClient";
 import toast from "react-hot-toast";
 
 const EmployeeManagement = () => {
   const [employees, setEmployees] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [isLoading, setIsLoading] = useState(true);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -30,6 +33,18 @@ const EmployeeManagement = () => {
     }
   };
 
+  const filteredEmployees = useMemo(() => {
+    if (!debouncedSearch.trim()) return employees;
+    const q = debouncedSearch.toLowerCase().trim();
+    return employees.filter(
+      (emp) =>
+        emp.name?.toLowerCase().includes(q) ||
+        emp.phone?.includes(q) ||
+        emp.email?.toLowerCase().includes(q) ||
+        emp.role_name?.toLowerCase().includes(q),
+    );
+  }, [employees, debouncedSearch]);
+
   if (user.role_id && ![1, 4].includes(Number(user.role_id))) {
     return (
       <div className="text-center py-20">
@@ -54,6 +69,16 @@ const EmployeeManagement = () => {
         </p>
       </div>
 
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <input
+          type="text"
+          placeholder="Tìm tên, SĐT, email, vai trò..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-xl w-full max-w-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+      </div>
+
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse whitespace-nowrap">
@@ -74,8 +99,17 @@ const EmployeeManagement = () => {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500 mx-auto"></div>
                   </td>
                 </tr>
+              ) : filteredEmployees.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan="5"
+                    className="px-6 py-10 text-center text-gray-500"
+                  >
+                    Không có nhân viên khớp bộ lọc.
+                  </td>
+                </tr>
               ) : (
-                employees.map((emp) => (
+                filteredEmployees.map((emp) => (
                   <tr key={emp.id} className="hover:bg-indigo-50/30 transition">
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-3">

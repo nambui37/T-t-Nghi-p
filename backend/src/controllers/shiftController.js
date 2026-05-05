@@ -2,6 +2,21 @@ const ShiftModel = require("../models/shiftModel");
 const db = require("../configs/db");
 
 const shiftController = {
+  getUpcoming: async (req, res) => {
+    try {
+      const employeeId = req.user.id;
+      const employeeRoles = [1, 2, 4, 5, 6, 7, 8];
+      if (!employeeRoles.includes(Number(req.user.role_id))) {
+        return res.status(403).json({ success: false, message: "Tài khoản của bạn không phải là nhân viên." });
+      }
+      const days = Math.min(parseInt(req.query.days, 10) || 60, 120);
+      const rows = await ShiftModel.getUpcomingSchedule(employeeId, days);
+      res.status(200).json({ success: true, data: rows });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  },
+
   getAvailable: async (req, res) => {
     try {
       const employeeId = req.user.id;
@@ -43,6 +58,15 @@ const shiftController = {
         });
       res.status(200).json({ success: true, message: "Nhận ca thành công" });
     } catch (error) {
+      if (
+        error.message &&
+        String(error.message).startsWith("TRÙNG_LỊCH:")
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: String(error.message).replace(/^TRÙNG_LỊCH:\s*/, ""),
+        });
+      }
       res.status(500).json({ success: false, message: error.message });
     }
   },
@@ -67,7 +91,13 @@ const shiftController = {
         message: "Check-in thành công",
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: error.message });
+      const isClient =
+        error.message &&
+        (error.message.includes("Không có ca làm") ||
+          error.message.includes("ca đã xử lý"));
+      res
+        .status(isClient ? 400 : 500)
+        .json({ success: false, message: error.message });
     }
   },
 

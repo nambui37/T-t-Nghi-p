@@ -209,10 +209,10 @@ const Revenue = () => {
                 transactions.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-medium text-gray-500">
-                      #HD-{t.id}
+                      {t.id}
                     </td>
                     <td className="px-6 py-4 font-bold text-pink-500">
-                      #LH{t.lich_hen_id}
+                      {t.lich_hen_id}
                     </td>
                     <td className="px-6 py-4 font-medium text-gray-900">
                       {t.customer_name || t.guest_name || "Khách hàng"}

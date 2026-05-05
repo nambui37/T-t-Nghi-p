@@ -4,6 +4,18 @@ import toast from "react-hot-toast";
 import AdminModal, { FormInput, FormSelect } from "../../components/AdminModal";
 import HealthChart from "../../components/HealthChart";
 
+function shiftExecutionLabel(status) {
+  const map = {
+    cho_nhan: "Chờ phân công",
+    da_nhan: "Chưa check-in",
+    check_in: "Đã vào ca",
+    dang_thuc_hien: "Đang thực hiện",
+    hoan_thanh: "Hoàn thành",
+    bao_loi: "Sự cố",
+  };
+  return map[status] || status || "—";
+}
+
 const HealthRecordManagement = () => {
   const [records, setRecords] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -12,6 +24,9 @@ const HealthRecordManagement = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [selectedRecordDetail, setSelectedRecordDetail] = useState(null);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const isAdmin = [1, 4].includes(Number(user?.role_id));
+
   const [formData, setFormData] = useState({
     khach_hang_id: "",
     thong_tin: "",
@@ -28,7 +43,24 @@ const HealthRecordManagement = () => {
         healthRecordAPI.getAll(),
         userAPI.getCustomers(),
       ]);
-      if (recordsRes.data.success) setRecords(recordsRes.data.data);
+      if (recordsRes.data.success) {
+        let allRecords = recordsRes.data.data || [];
+
+        // Lọc hồ sơ: Nếu không phải Admin/Quản lý, chỉ hiển thị hồ sơ khách hàng mình có tham gia chăm sóc
+        if (!isAdmin) {
+          allRecords = allRecords.filter((record) =>
+            record.appointments?.some(
+              (apt) =>
+                Number(apt.nhan_vien_id) === Number(user.id) ||
+                apt.shifts?.some(
+                  (s) => Number(s.nhan_vien_id) === Number(user.id),
+                ),
+            ),
+          );
+        }
+        setRecords(allRecords);
+      }
+
       if (customersRes.data.success) {
         // Chỉ lấy khách hàng đã có user_id (không phải vãng lai) để gán hồ sơ
         setCustomers(customersRes.data.data.filter((c) => c.id !== null));
@@ -121,12 +153,14 @@ const HealthRecordManagement = () => {
             Theo dõi tình trạng sức khỏe của mẹ và bé
           </p>
         </div>
-        <button
-          onClick={() => handleOpenModal()}
-          className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center gap-2"
-        >
-          <span className="text-xl">+</span> Tạo hồ sơ mới
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => handleOpenModal()}
+            className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-100 flex items-center gap-2"
+          >
+            <span className="text-xl">+</span> Tạo hồ sơ mới
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -167,13 +201,15 @@ const HealthRecordManagement = () => {
                   >
                     ✏️
                   </button>
-                  <button
-                    onClick={() => handleDelete(record.id)}
-                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                    title="Xóa"
-                  >
-                    🗑️
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDelete(record.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                      title="Xóa"
+                    >
+                      🗑️
+                    </button>
+                  )}
                 </div>
               </div>
               <div className="bg-gray-50 p-4 rounded-xl text-gray-600 text-sm whitespace-pre-wrap min-h-25 line-clamp-4 border border-gray-100">
@@ -277,7 +313,7 @@ const HealthRecordManagement = () => {
               <div>
                 <h2 className="text-2xl font-bold">Chi tiết Hồ sơ Chăm sóc</h2>
                 <p className="text-indigo-100 text-sm">
-                  Mã hồ sơ: #{selectedRecordDetail.id}
+                  Mã hồ sơ: {selectedRecordDetail.id}
                 </p>
               </div>
               <button
@@ -506,12 +542,9 @@ const HealthRecordManagement = () => {
                                         ).toLocaleDateString()}
                                       </span>
                                     </div>
-                                    <div className="flex gap-2 mt-1">
+                                    <div className="flex gap-2 mt-1 flex-wrap">
                                       <span className="text-green-600 font-medium">
-                                        ✓{" "}
-                                        {shift.status === "hoan_thanh"
-                                          ? "Hoàn thành"
-                                          : "Đang làm"}
+                                        ✓ {shiftExecutionLabel(shift.status)}
                                       </span>
                                       {shift.check_in && (
                                         <span className="text-gray-400">

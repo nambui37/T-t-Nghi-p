@@ -33,10 +33,13 @@ import EmployeeShifts from "./pages/admin/EmployeeShifts";
 import ArticleManagement from "./pages/admin/ArticleManagement";
 import ReviewManagement from "./pages/admin/ReviewManagement";
 import IncidentManagement from "./pages/admin/IncidentManagement";
+import HomeCare from "./pages/admin/HomeCare";
+import CenterCare from "./pages/admin/CenterCare";
 import ResetPassword from "./pages/user/ResetPassword";
 import ChatWindow from "./components/ChatWindow";
 import AIChatbot from "./components/AIChatbot";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import VNPayReturn from "./pages/user/VNPayReturn";
 
 // Component bảo vệ Route yêu cầu đăng nhập
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -119,9 +122,25 @@ function App() {
                 }
               />
               <Route
-                path="khach-hang"
+                path="cham-soc-tai-nha"
                 element={
                   <ProtectedRoute allowedRoles={[1, 4]}>
+                    <HomeCare />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="cham-soc-trung-tam"
+                element={
+                  <ProtectedRoute allowedRoles={[1, 4]}>
+                    <CenterCare />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="khach-hang"
+                element={
+                  <ProtectedRoute allowedRoles={[1, 2, 4, 5, 6, 7, 8]}>
                     <Customers />
                   </ProtectedRoute>
                 }
@@ -199,6 +218,7 @@ function App() {
                 }
               />
             </Route>
+            <Route path="/vnpay-return" element={<VNPayReturn />} />
           </Routes>
         </div>
       </Router>

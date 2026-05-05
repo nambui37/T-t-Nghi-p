@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Cropper from "react-easy-crop";
 import {
@@ -63,6 +63,7 @@ const Profile = () => {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
   const [selectedApt, setSelectedApt] = useState(null);
   const [staffReviews, setStaffReviews] = useState([]); // [{nhan_vien_id, name, rating, comment}]
   const [error, setError] = useState("");
@@ -103,8 +104,14 @@ const Profile = () => {
     if (!authUser) {
       toast.error("Vui lòng đăng nhập để xem hồ sơ.");
       navigate("/login");
-      return;
     }
+  }, [authUser, navigate]);
+
+  const hasFetchedProfile = useRef(false);
+
+  useEffect(() => {
+    if (!authUser || hasFetchedProfile.current) return;
+    hasFetchedProfile.current = true;
 
     // Kiểm tra query string để hiển thị thông báo thanh toán thành công
     const params = new URLSearchParams(window.location.search);
@@ -136,11 +143,16 @@ const Profile = () => {
             phone: u.phone || "",
             email: u.email,
           });
+
+          // Cập nhật lại localStorage để tránh mất dữ liệu khi F5
+          localStorage.setItem("user", JSON.stringify(u));
+          if (typeof updateAuthUser === "function") {
+            updateAuthUser(u);
+          }
         }
 
         if (appointmentsRes.data.success) {
-          // Tạm thời lấy hết, lý tưởng nhất là backend filter theo user đang đăng nhập
-          setAppointments(appointmentsRes.data.data || []);
+          setAppointments(appointmentsRes.data.rows || []);
         }
       } catch (error) {
         console.error("Lỗi fetch profile:", error);
@@ -155,7 +167,7 @@ const Profile = () => {
     };
 
     fetchProfileData();
-  }, [authUser, navigate, logout]);
+  }, [authUser, navigate, logout, updateAuthUser]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -185,7 +197,10 @@ const Profile = () => {
       if (profileRes.data.success) {
         const updatedData = profileRes.data.data;
         setUser(updatedData);
-        updateAuthUser(updatedData);
+        if (typeof updateAuthUser === "function") {
+          updateAuthUser(updatedData);
+        }
+        localStorage.setItem("user", JSON.stringify(updatedData));
       }
     } catch (error) {
       setError("Lỗi khi cập nhật thông tin.");
@@ -264,7 +279,10 @@ const Profile = () => {
         if (profileRes.data.success) {
           const updatedData = profileRes.data.data;
           setUser(updatedData);
-          updateAuthUser(updatedData);
+          if (typeof updateAuthUser === "function") {
+            updateAuthUser(updatedData);
+          }
+          localStorage.setItem("user", JSON.stringify(updatedData));
         }
       }
     } catch (error) {
@@ -320,21 +338,50 @@ const Profile = () => {
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     try {
-      await reviewAPI.create({
-        goi_id: selectedApt.goi_id,
-        rating: staffReviews[0]?.rating || 5,
-        comment: staffReviews[0]?.comment || "",
-      });
-      toast.success("Cảm ơn bạn đã đánh giá dịch vụ!");
+      if (isEditingReview) {
+        // Bạn nhớ thêm hàm update vào reviewAPI trong apiClient.js nhé
+        await reviewAPI.update(selectedApt.review_id, {
+          rating: staffReviews[0]?.rating || 5,
+          comment: staffReviews[0]?.comment || "",
+        });
+        toast.success("Đã cập nhật đánh giá thành công!");
+      } else {
+        await reviewAPI.create({
+          goi_id: selectedApt.goi_id,
+          rating: staffReviews[0]?.rating || 5,
+          comment: staffReviews[0]?.comment || "",
+        });
+        toast.success("Cảm ơn bạn đã đánh giá dịch vụ!");
+      }
+
       setIsReviewModalOpen(false);
       setStaffReviews([]);
+
+      // Gọi lại API để load dữ liệu (lấy ID và Data mới nhất)
+      const appointmentsRes = await appointmentAPI.getAll();
+      if (appointmentsRes.data.success) {
+        setAppointments(appointmentsRes.data.rows || []);
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi gửi đánh giá.");
     }
   };
 
+  const openEditReviewModal = (apt) => {
+    setSelectedApt(apt);
+    setIsEditingReview(true);
+    setStaffReviews([
+      {
+        rating: apt.review_rating || 5,
+        comment: apt.review_comment || "",
+      },
+    ]);
+    setIsReviewModalOpen(true);
+  };
+
   const openReviewModal = (apt) => {
     setSelectedApt(apt);
+    setIsEditingReview(false);
     // Chỉ cần 1 form đánh giá cho gói dịch vụ
     setStaffReviews([
       {
@@ -358,7 +405,7 @@ const Profile = () => {
           // Refresh data
           const appointmentsRes = await appointmentAPI.getAll();
           if (appointmentsRes.data.success) {
-            setAppointments(appointmentsRes.data.data || []);
+            setAppointments(appointmentsRes.data.rows || []);
           }
         }
       } catch (error) {
@@ -794,10 +841,10 @@ const Profile = () => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl animate-scale-up">
             <h3 className="text-2xl font-bold text-gray-900 mb-2">
-              Đánh giá dịch vụ
+              {isEditingReview ? "Chỉnh sửa đánh giá" : "Đánh giá dịch vụ"}
             </h3>
             <p className="text-gray-500 mb-6 italic">
-              Chia sẻ cảm nhận của bạn về gói: {selectedApt.service}
+              Chia sẻ cảm nhận của bạn về gói: {selectedApt.service_name}
             </p>
 
             <form onSubmit={handleReviewSubmit}>
@@ -1001,19 +1048,37 @@ const Profile = () => {
                             #{apt.id}
                           </span>
                           <h4 className="text-lg font-bold text-gray-900">
-                            {apt.service}
+                            {apt.service_name}
                           </h4>
                         </div>
                         <div className="flex flex-col items-end gap-2">
                           {getStatusBadge(apt.status)}
-                          {apt.status === "hoan_thanh" && (
-                            <button
-                              onClick={() => openReviewModal(apt)}
-                              className="text-xs font-bold text-pink-500 hover:text-pink-600 underline"
-                            >
-                              Đánh giá ngay
-                            </button>
-                          )}
+                          {apt.status === "hoan_thanh" &&
+                            (apt.is_reviewed ? (
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-xs font-bold text-gray-400">
+                                  Đã đánh giá ✓
+                                </span>
+                                {apt.review_date &&
+                                  new Date().getTime() -
+                                    new Date(apt.review_date).getTime() <=
+                                    24 * 60 * 60 * 1000 && (
+                                    <button
+                                      onClick={() => openEditReviewModal(apt)}
+                                      className="text-xs font-bold text-blue-500 hover:text-blue-600 underline"
+                                    >
+                                      Sửa đánh giá
+                                    </button>
+                                  )}
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => openReviewModal(apt)}
+                                className="text-xs font-bold text-pink-500 hover:text-pink-600 underline"
+                              >
+                                Đánh giá ngay
+                              </button>
+                            ))}
                           {["cho_xac_nhan", "da_xac_nhan"].includes(
                             apt.status,
                           ) && (

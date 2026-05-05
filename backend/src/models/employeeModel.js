@@ -52,7 +52,7 @@ const EmployeeModel = {
     const query = `
       SELECT 
         nv.id, u.name, nv.chuc_vu,
-        (SELECT COUNT(*) FROM lich_hen WHERE nhan_vien_id = nv.id AND status = 'hoan_thanh') as shifts_completed
+        (SELECT COUNT(*) FROM chi_tiet_ca_lam ct WHERE ct.nhan_vien_id = nv.id AND ct.status = 'hoan_thanh') as shifts_completed
       FROM nhan_vien nv
       JOIN users u ON nv.user_id = u.id
     `;

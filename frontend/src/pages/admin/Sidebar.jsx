@@ -21,9 +21,12 @@ const Sidebar = () => {
       }
     };
     fetchUnread();
-    // Refresh mỗi 30s
     const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    window.addEventListener("admin-notifications-refresh", fetchUnread);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("admin-notifications-refresh", fetchUnread);
+    };
   }, []);
 
   // Danh sách các menu điều hướng của Admin
@@ -34,6 +37,18 @@ const Sidebar = () => {
       icon: "📅",
       label: "Quản lý lịch hẹn",
       roles: [1, 2, 4, 5, 6, 7, 8],
+    },
+    {
+      path: "/admin/cham-soc-tai-nha",
+      icon: "🏠",
+      label: "Chăm sóc tại nhà",
+      roles: [1, 4],
+    },
+    {
+      path: "/admin/cham-soc-trung-tam",
+      icon: "🏥",
+      label: "Chăm sóc trung tâm",
+      roles: [1, 4],
     },
     {
       path: "/admin/ca-lam",
@@ -57,7 +72,7 @@ const Sidebar = () => {
       path: "/admin/khach-hang",
       icon: "👥",
       label: "Khách hàng",
-      roles: [1, 4],
+      roles: [1, 2, 4, 5, 6, 7, 8],
     },
     {
       path: "/admin/dich-vu",

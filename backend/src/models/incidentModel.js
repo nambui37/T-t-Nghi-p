@@ -1,12 +1,14 @@
 const db = require("../configs/db");
 const NotificationModel = require("./notificationModel");
+const { ensureNhanVienForUser } = require("../utils/nhanVienRef");
 
 const IncidentModel = {
   create: async (data) => {
     const { lich_hen_id, nhan_vien_id, ca_lam_id, noi_dung, muc_do } = data;
+    const nvPk = nhan_vien_id ? await ensureNhanVienForUser(db, nhan_vien_id) : null;
     const [result] = await db.query(
       "INSERT INTO su_co (lich_hen_id, nhan_vien_id, ca_lam_id, noi_dung, muc_do, trang_thai) VALUES (?, ?, ?, ?, ?, 'cho_xu_ly')",
-      [lich_hen_id, nhan_vien_id, ca_lam_id, noi_dung, muc_do]
+      [lich_hen_id, nvPk, ca_lam_id, noi_dung, muc_do]
     );
 
     // Cập nhật trạng thái ca làm việc
@@ -36,7 +38,8 @@ const IncidentModel = {
     const [rows] = await db.query(`
       SELECT sc.*, u.name as nhan_vien_name, lh.guest_name, lh.guest_phone 
       FROM su_co sc
-      LEFT JOIN users u ON sc.nhan_vien_id = u.id
+      LEFT JOIN nhan_vien nv ON nv.id = sc.nhan_vien_id
+      LEFT JOIN users u ON u.id = nv.user_id
       LEFT JOIN lich_hen lh ON sc.lich_hen_id = lh.id
       ORDER BY sc.created_at DESC
     `);

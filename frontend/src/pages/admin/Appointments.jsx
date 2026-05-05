@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import {
   appointmentAPI,
   serviceAPI,
@@ -40,6 +41,7 @@ const Appointments = () => {
   });
 
   const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [filterDate, setFilterDate] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [newAppointment, setNewAppointment] = useState({
@@ -52,6 +54,17 @@ const Appointments = () => {
     dia_diem: "tai_nha",
     guest_name: "",
     guest_phone: "",
+    dia_chi_cu_the: "",
+    loai_phong: "thuong",
+    ngay_sinh_be: "",
+    hinh_thuc_sinh: "sinh_thuong",
+    tinh_trang_me: "",
+    so_luong_be: 1,
+    can_nang_be: "",
+    ghi_chu_be: "",
+    hinh_thuc_thanh_toan: "tien_mat",
+    trang_thai_thanh_toan: "chua_thanh_toan",
+    dat_coc: 0,
   });
 
   // Lấy ngày hiện tại để làm min date (yyyy-mm-dd)
@@ -67,7 +80,7 @@ const Appointments = () => {
     } else {
       fetchData();
     }
-  }, [filterStatus, searchTerm]);
+  }, [filterStatus, debouncedSearch, filterDate]);
 
   useEffect(() => {
     // Chỉ gọi fetchData khi currentPage thực sự thay đổi
@@ -82,7 +95,8 @@ const Appointments = () => {
           page: currentPage,
           limit: itemsPerPage,
           status: filterStatus,
-          search: searchTerm,
+          search: debouncedSearch,
+          ngay_trong_lich: filterDate || undefined,
         }),
         serviceAPI.getAll(),
         userAPI.getCustomers(),
@@ -141,6 +155,17 @@ const Appointments = () => {
           dia_diem: "tai_nha",
           guest_name: "",
           guest_phone: "",
+          dia_chi_cu_the: "",
+          loai_phong: "thuong",
+          ngay_sinh_be: "",
+          hinh_thuc_sinh: "sinh_thuong",
+          tinh_trang_me: "",
+          so_luong_be: 1,
+          can_nang_be: "",
+          ghi_chu_be: "",
+          hinh_thuc_thanh_toan: "tien_mat",
+          trang_thai_thanh_toan: "chua_thanh_toan",
+          dat_coc: 0,
         });
       }
     } catch (error) {
@@ -204,16 +229,35 @@ const Appointments = () => {
     setIsStatusModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Bạn có chắc chắn muốn hủy lịch hẹn này?")) {
-      try {
-        await appointmentAPI.delete(id);
-        toast.success(`Đã hủy lịch hẹn #${id}`);
-        fetchData();
-      } catch (error) {
-        toast.error("Lỗi khi hủy lịch hẹn.");
-      }
+  const getAvailableStatusOptions = (currentStatus) => {
+    const allOptions = [
+      { value: "cho_xac_nhan", label: "Chờ xác nhận" },
+      { value: "da_xac_nhan", label: "Đã xác nhận" },
+      { value: "dang_thuc_hien", label: "Đang thực hiện" },
+      { value: "hoan_thanh", label: "Hoàn thành" },
+      { value: "da_huy", label: "Đã hủy" },
+    ];
+
+    // Nếu đã hoàn thành hoặc đã hủy, không cho phép thay đổi
+    if (currentStatus === "hoan_thanh" || currentStatus === "da_huy") {
+      return allOptions.map((opt) => ({
+        ...opt,
+        disabled: opt.value !== currentStatus,
+      }));
     }
+
+    // Logic chuyển trạng thái theo thứ tự
+    const allowedTransitions = {
+      cho_xac_nhan: ["cho_xac_nhan", "da_xac_nhan", "da_huy"],
+      da_xac_nhan: ["da_xac_nhan", "dang_thuc_hien", "da_huy"],
+      dang_thuc_hien: ["dang_thuc_hien", "hoan_thanh", "da_huy"],
+    };
+
+    const allowed = allowedTransitions[currentStatus] || [];
+    return allOptions.map((opt) => ({
+      ...opt,
+      disabled: !allowed.includes(opt.value),
+    }));
   };
 
   const currentItems = appointments;
@@ -306,7 +350,6 @@ const Appointments = () => {
           <input
             type="date"
             value={filterDate}
-            min={today}
             onChange={(e) => setFilterDate(e.target.value)}
             className="px-4 py-2 border border-gray-200 rounded-xl text-gray-600 focus:outline-none focus:ring-2 focus:ring-pink-500 transition"
           />
@@ -334,9 +377,11 @@ const Appointments = () => {
                 <th className="px-6 py-4 font-semibold">Khách hàng</th>
                 <th className="px-6 py-4 font-semibold">Dịch vụ</th>
                 <th className="px-6 py-4 font-semibold">Ngày dự kiến</th>
+                <th className="px-6 py-4 font-semibold">Địa điểm</th>
+                <th className="px-6 py-4 font-semibold">Trạng thái</th>
                 <th className="px-6 py-4 font-semibold">Thanh toán</th>
                 {isAdmin && (
-                  <th className="px-6 py-4 font-semibold text-right">
+                  <th className="px-6 py-4 font-semibold text-center">
                     Hành động
                   </th>
                 )}
@@ -346,7 +391,7 @@ const Appointments = () => {
               {isLoading ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="8"
                     className="px-6 py-10 text-center text-pink-500 font-bold"
                   >
                     Đang tải...
@@ -355,7 +400,7 @@ const Appointments = () => {
               ) : !currentItems || currentItems.length === 0 ? (
                 <tr>
                   <td
-                    colSpan="6"
+                    colSpan="8"
                     className="px-6 py-10 text-center text-gray-500"
                   >
                     Không tìm thấy lịch hẹn nào.
@@ -365,7 +410,7 @@ const Appointments = () => {
                 currentItems.map((apt) => (
                   <tr key={apt.id} className="hover:bg-pink-50/30 transition">
                     <td className="px-6 py-4 font-bold text-pink-500">
-                      #{apt.id}
+                      {apt.id}
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-bold text-gray-900">
@@ -383,6 +428,14 @@ const Appointments = () => {
                       {new Date(apt.ngay_ket_thuc).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4">
+                      <span className="text-xs font-bold bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                        {apt.dia_diem === "tai_nha"
+                          ? "🏠 Tại nhà"
+                          : "🏢 Tại trung tâm"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">{getStatusBadge(apt.status)}</td>
+                    <td className="px-6 py-4">
                       {getPaymentStatusBadge(
                         apt.trang_thai_thanh_toan,
                         apt.hinh_thuc_thanh_toan,
@@ -390,40 +443,44 @@ const Appointments = () => {
                       )}
                     </td>
                     {isAdmin && (
-                      <td className="px-6 py-4 text-right space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedApt(apt);
-                            setIsDetailModalOpen(true);
-                          }}
-                          className="text-pink-500 hover:underline font-medium"
-                        >
-                          Chi tiết
-                        </button>
-                        <button
-                          onClick={() => openStatusModal(apt)}
-                          className="text-blue-500 hover:underline font-medium"
-                        >
-                          Cập nhật
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedApt(apt);
-                            setAssignData({
-                              nhan_vien_id: apt.nhan_vien_id || "",
-                            });
-                            setIsAssignModalOpen(true);
-                          }}
-                          className="text-indigo-600 hover:underline font-medium"
-                        >
-                          Phân công
-                        </button>
-                        <button
-                          onClick={() => handleDelete(apt.id)}
-                          className="text-red-500 hover:underline font-medium"
-                        >
-                          Hủy
-                        </button>
+                      <td className="px-6 py-4 text-center">
+                        <div className="relative group">
+                          <button className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition font-bold text-lg">
+                            ⋯
+                          </button>
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                            <button
+                              onClick={() => {
+                                setSelectedApt(apt);
+                                setIsDetailModalOpen(true);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 font-medium transition border-b border-gray-100 first:rounded-t-lg"
+                            >
+                              👁️ Xem chi tiết
+                            </button>
+                            <button
+                              onClick={() => openStatusModal(apt)}
+                              className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 font-medium transition border-b border-gray-100"
+                            >
+                              📝 Cập nhật trạng thái
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedApt(apt);
+                                setAssignData({
+                                  nhan_vien_id:
+                                    apt.nhan_vien_id ||
+                                    apt.staff_list?.[0]?.id ||
+                                    "",
+                                });
+                                setIsAssignModalOpen(true);
+                              }}
+                              className="w-full text-left px-4 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 font-medium transition last:rounded-b-lg"
+                            >
+                              👨‍💼 Phân công nhân viên
+                            </button>
+                          </div>
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -463,141 +520,295 @@ const Appointments = () => {
         onClose={() => setIsModalOpen(false)}
         title="Tạo lịch hẹn mới"
         onConfirm={handleAddAppointment}
-        size="1xl"
+        size="3xl"
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormSelect
-            label="Khách hàng hệ thống"
-            value={newAppointment.user_id}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                user_id: e.target.value,
-                guest_name: "",
-                guest_phone: "",
-              })
-            }
-            options={[
-              { value: "", label: "-- Chọn khách hàng --" },
-              ...customers.map((c) => ({
-                value: c.id,
-                label: `${c.name} (${c.phone})`,
-              })),
-            ]}
-          />
-          <FormInput
-            label="Tên khách vãng lai"
-            disabled={!!newAppointment.user_id}
-            value={newAppointment.guest_name}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                guest_name: e.target.value,
-              })
-            }
-            placeholder="Nếu chưa có tài khoản"
-          />
-          <FormInput
-            label="Số điện thoại khách"
-            type="tel"
-            disabled={!!newAppointment.user_id}
-            value={newAppointment.guest_phone}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                guest_phone: e.target.value,
-              })
-            }
-          />
-          <FormSelect
-            label="Chuyên viên thực hiện"
-            value={newAppointment.nhan_vien_id}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                nhan_vien_id: e.target.value,
-              })
-            }
-            options={[
-              { value: "", label: "-- Chọn chuyên viên (Nếu có) --" },
-              ...employees.map((e) => ({
-                value: e.id,
-                label: `${e.name} (${e.phone})`,
-              })),
-            ]}
-          />
-          <FormSelect
-            label="Dịch vụ"
-            required
-            value={newAppointment.goi_id}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                goi_id: e.target.value,
-              })
-            }
-            options={[
-              { value: "", label: "-- Chọn dịch vụ --" },
-              ...services.map((s) => ({
-                value: s.id,
-                label: `${s.name} - ${Number(s.gia).toLocaleString()}đ`,
-              })),
-            ]}
-          />
-          <FormInput
-            label="Ngày bắt đầu"
-            type="date"
-            required
-            min={today}
-            value={newAppointment.ngay_bat_dau}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                ngay_bat_dau: e.target.value,
-              })
-            }
-          />
-          <FormInput
-            label="Ngày kết thúc"
-            type="date"
-            required
-            min={newAppointment.ngay_bat_dau || today}
-            value={newAppointment.ngay_ket_thuc}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                ngay_ket_thuc: e.target.value,
-              })
-            }
-          />
-          <FormSelect
-            label="Địa điểm"
-            value={newAppointment.dia_diem}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                dia_diem: e.target.value,
-              })
-            }
-            options={[
-              { value: "tai_nha", label: "Tại nhà" },
-              { value: "trung_tam", label: "Tại trung tâm" },
-            ]}
-          />
-          <FormSelect
-            label="Loại lịch"
-            value={newAppointment.loai_lich}
-            onChange={(e) =>
-              setNewAppointment({
-                ...newAppointment,
-                loai_lich: e.target.value,
-              })
-            }
-            options={[
-              { value: "linh_hoat", label: "Linh hoạt" },
-              { value: "co_dinh", label: "Cố định" },
-            ]}
-          />
+        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+            <h3 className="font-bold text-pink-600 mb-4 border-b border-pink-200 pb-2">
+              1. Thông tin Khách hàng & Dịch vụ
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormSelect
+                label="Khách hàng hệ thống"
+                value={newAppointment.user_id}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    user_id: e.target.value,
+                    guest_name: "",
+                    guest_phone: "",
+                  })
+                }
+                options={[
+                  { value: "", label: "-- Chọn khách hàng --" },
+                  ...customers.map((c) => ({
+                    value: c.id,
+                    label: `${c.name} (${c.phone})`,
+                  })),
+                ]}
+              />
+              <FormInput
+                label="Tên khách vãng lai"
+                disabled={!!newAppointment.user_id}
+                value={newAppointment.guest_name}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    guest_name: e.target.value,
+                  })
+                }
+                placeholder="Nếu chưa có tài khoản"
+              />
+              <FormInput
+                label="Số điện thoại khách"
+                type="tel"
+                disabled={!!newAppointment.user_id}
+                value={newAppointment.guest_phone}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    guest_phone: e.target.value,
+                  })
+                }
+              />
+              <FormSelect
+                label="Chuyên viên thực hiện"
+                value={newAppointment.nhan_vien_id}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    nhan_vien_id: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "", label: "-- Chọn chuyên viên (Nếu có) --" },
+                  ...employees
+                    .filter((e) => Number(e.role_id) !== 1)
+                    .map((e) => ({
+                      value: e.id,
+                      label: `${e.name} (${e.phone}) - ${e.role_name || "NV"}`,
+                    })),
+                ]}
+              />
+              <FormSelect
+                label="Dịch vụ"
+                required
+                value={newAppointment.goi_id}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    goi_id: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "", label: "-- Chọn dịch vụ --" },
+                  ...services.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} - ${Number(s.gia).toLocaleString()}đ`,
+                  })),
+                ]}
+              />
+              <FormInput
+                label="Ngày bắt đầu"
+                type="date"
+                required
+                min={today}
+                value={newAppointment.ngay_bat_dau}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    ngay_bat_dau: e.target.value,
+                  })
+                }
+              />
+              <FormInput
+                label="Ngày kết thúc"
+                type="date"
+                required
+                min={newAppointment.ngay_bat_dau || today}
+                value={newAppointment.ngay_ket_thuc}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    ngay_ket_thuc: e.target.value,
+                  })
+                }
+              />
+              <FormSelect
+                label="Địa điểm"
+                value={newAppointment.dia_diem}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    dia_diem: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "tai_nha", label: "Tại nhà" },
+                  { value: "trung_tam", label: "Tại trung tâm" },
+                ]}
+              />
+              <FormSelect
+                label="Loại lịch"
+                value={newAppointment.loai_lich}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    loai_lich: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "linh_hoat", label: "Linh hoạt" },
+                  { value: "co_dinh", label: "Cố định" },
+                ]}
+              />
+              <FormSelect
+                label="Loại phòng"
+                value={newAppointment.loai_phong}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    loai_phong: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "thuong", label: "Phòng thường" },
+                  { value: "vip", label: "Phòng VIP" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="bg-pink-50/50 p-4 rounded-xl border border-pink-100">
+            <h3 className="font-bold text-pink-600 mb-4 border-b border-pink-200 pb-2">
+              2. Thông tin Mẹ & Bé (Tùy chọn)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormInput
+                label="Ngày sinh bé"
+                type="date"
+                value={newAppointment.ngay_sinh_be}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    ngay_sinh_be: e.target.value,
+                  })
+                }
+              />
+              <FormSelect
+                label="Hình thức sinh"
+                value={newAppointment.hinh_thuc_sinh}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    hinh_thuc_sinh: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "sinh_thuong", label: "Sinh thường" },
+                  { value: "sinh_mo", label: "Sinh mổ" },
+                ]}
+              />
+              <FormInput
+                label="Số lượng bé"
+                type="number"
+                min="1"
+                value={newAppointment.so_luong_be}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    so_luong_be: e.target.value,
+                  })
+                }
+              />
+              <FormInput
+                label="Cân nặng bé (kg)"
+                value={newAppointment.can_nang_be}
+                placeholder="VD: 3.2"
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    can_nang_be: e.target.value,
+                  })
+                }
+              />
+              <div className="md:col-span-2">
+                <FormInput
+                  label="Tình trạng mẹ"
+                  value={newAppointment.tinh_trang_me}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      tinh_trang_me: e.target.value,
+                    })
+                  }
+                />
+              </div>
+              <div className="md:col-span-2">
+                <FormInput
+                  label="Ghi chú về bé"
+                  value={newAppointment.ghi_chu_be}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      ghi_chu_be: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+            <h3 className="font-bold text-blue-600 mb-4 border-b border-blue-200 pb-2">
+              3. Thanh toán
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormSelect
+                label="Hình thức thanh toán"
+                value={newAppointment.hinh_thuc_thanh_toan}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    hinh_thuc_thanh_toan: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "tien_mat", label: "Tiền mặt" },
+                  { value: "vnpay", label: "VNPay" },
+                ]}
+              />
+              <FormSelect
+                label="Trạng thái thanh toán"
+                value={newAppointment.trang_thai_thanh_toan}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    trang_thai_thanh_toan: e.target.value,
+                  })
+                }
+                options={[
+                  { value: "chua_thanh_toan", label: "Chưa thanh toán" },
+                  { value: "da_coc_15", label: "Đã cọc 15%" },
+                  { value: "da_thanh_toan_het", label: "Đã tất toán" },
+                ]}
+              />
+              <div className="md:col-span-2">
+                <FormInput
+                  label="Tiền cọc (VNĐ)"
+                  type="number"
+                  min="0"
+                  value={newAppointment.dat_coc}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      dat_coc: e.target.value,
+                    })
+                  }
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </AdminModal>
 
@@ -609,21 +820,42 @@ const Appointments = () => {
         onConfirm={handleUpdateStatus}
       >
         <div className="space-y-4">
+          {/* Cảnh báo nếu đã hoàn thành hoặc đã hủy */}
+          {selectedApt &&
+            (selectedApt.status === "hoan_thanh" ||
+              selectedApt.status === "da_huy") && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                <p className="text-sm font-semibold text-red-700">
+                  ⚠️ Lịch hẹn này đã{" "}
+                  {selectedApt.status === "hoan_thanh" ? "hoàn thành" : "hủy"}.
+                  Không thể thay đổi trạng thái.
+                </p>
+              </div>
+            )}
+
           <div className="grid grid-cols-2 gap-4">
             <FormSelect
               label="Trạng thái lịch"
               required
               value={statusData.status}
-              onChange={(e) =>
-                setStatusData({ ...statusData, status: e.target.value })
+              disabled={
+                selectedApt &&
+                (selectedApt.status === "hoan_thanh" ||
+                  selectedApt.status === "da_huy")
               }
-              options={[
-                { value: "cho_xac_nhan", label: "Chờ xác nhận" },
-                { value: "da_xac_nhan", label: "Đã xác nhận" },
-                { value: "dang_thuc_hien", label: "Đang thực hiện" },
-                { value: "hoan_thanh", label: "Hoàn thành" },
-                { value: "da_huy", label: "Đã hủy" },
-              ]}
+              onChange={(e) => {
+                const v = e.target.value;
+                setStatusData((prev) => ({
+                  ...prev,
+                  status: v,
+                  ...(v === "hoan_thanh"
+                    ? { trang_thai_thanh_toan: "da_thanh_toan_het" }
+                    : {}),
+                }));
+              }}
+              options={
+                selectedApt ? getAvailableStatusOptions(selectedApt.status) : []
+              }
             />
             <FormSelect
               label="Thanh toán"
@@ -676,7 +908,15 @@ const Appointments = () => {
             />
           </div>
           <p className="text-xs text-gray-500 italic">
+            * Khi chọn trạng thái &quot;Hoàn thành&quot;, hệ thống mặc định ghi
+            nhận thanh toán &quot;Đã tất toán&quot; (đồng bộ backend).
+          </p>
+          <p className="text-xs text-gray-500 italic">
             * Cập nhật khoảng ngày thực tế khi ca làm việc đã được thực hiện.
+          </p>
+          <p className="text-xs text-yellow-600 italic font-medium">
+            * Khi lịch hẹn đã hoàn thành hoặc đã hủy, không thể thay đổi trạng
+            thái.
           </p>
         </div>
       </AdminModal>
@@ -685,7 +925,7 @@ const Appointments = () => {
       <AdminModal
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        title={`Chi tiết lịch hẹn #${selectedApt?.id}`}
+        title={`Chi tiết lịch hẹn ${selectedApt?.id ?? ""}`}
         showConfirm={false}
         cancelText="Đóng"
         size="3xl"
@@ -975,7 +1215,7 @@ const Appointments = () => {
       <AdminModal
         isOpen={isAssignModalOpen}
         onClose={() => setIsAssignModalOpen(false)}
-        title={`Phân công nhân viên cho LH #${selectedApt?.id}`}
+        title={`Phân công nhân viên cho lịch ${selectedApt?.id ?? ""}`}
         onConfirm={handleAssignStaff}
       >
         <div className="space-y-4">
@@ -988,10 +1228,12 @@ const Appointments = () => {
             }
             options={[
               { value: "", label: "-- Chọn chuyên viên --" },
-              ...employees.map((e) => ({
-                value: e.id,
-                label: `${e.name} (${e.phone}) - ${e.role_name || "NV"}`,
-              })),
+              ...employees
+                .filter((e) => Number(e.role_id) !== 1)
+                .map((e) => ({
+                  value: e.id,
+                  label: `${e.name} (${e.phone}) - ${e.role_name || "NV"}`,
+                })),
             ]}
           />
           <p className="text-sm text-gray-500 italic">

@@ -4,6 +4,23 @@ const bcrypt = require("bcryptjs");
 const { sendEmail } = require("../utils/emailHelper");
 const crypto = require("crypto");
 
+/** Base URL phục vụ file tĩnh (ảnh upload); ưu tiên PUBLIC_API_URL để URL không phụ thuộc host lúc upload */
+function publicAssetBaseUrl(req) {
+  const fromEnv = process.env.PUBLIC_API_URL || process.env.API_PUBLIC_URL;
+  if (fromEnv) {
+    return String(fromEnv).replace(/\/api\/?$/i, "").replace(/\/+$/, "");
+  }
+  return `${req.protocol}://${req.get("host")}`;
+}
+
+function absoluteAvatarUrl(req, avatar) {
+  if (!avatar) return null;
+  const s = String(avatar).trim();
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  const pathPart = s.startsWith("/") ? s : `/${s}`;
+  return `${publicAssetBaseUrl(req)}${pathPart}`;
+}
+
 const authController = {
   // --- AUTHENTICATION ---
   register: async (req, res) => {
@@ -109,6 +126,10 @@ const authController = {
         console.warn("Profile not found for userId:", req.user?.id);
         // Trả về 401 thay vì 404 để Frontend biết là session không còn hợp lệ và yêu cầu login lại
         return res.status(401).json({ success: false, message: "Phiên đăng nhập không hợp lệ hoặc người dùng đã bị xóa." });
+      }
+
+      if (profile.avatar) {
+        profile.avatar = absoluteAvatarUrl(req, profile.avatar);
       }
 
       res.status(200).json({ success: true, data: profile });
@@ -288,12 +309,11 @@ const authController = {
       const userId = req.user.id;
       console.log("Updating avatar for user:", userId);
       
-      // Trả về đường dẫn tương đối để Frontend tự ghép host, hoặc dùng full URL linh hoạt
       const avatarPath = `/uploads/avatars/${req.file.filename}`;
-      const fullUrl = `${req.protocol}://${req.get('host')}${avatarPath}`;
+      const fullUrl = absoluteAvatarUrl(req, avatarPath);
       console.log("Avatar URL:", fullUrl);
 
-      await AuthModel.updateAvatar(userId, fullUrl);
+      await AuthModel.updateAvatar(userId, avatarPath);
       res.status(200).json({ 
         success: true, 
         message: "Cập nhật ảnh đại diện thành công!",

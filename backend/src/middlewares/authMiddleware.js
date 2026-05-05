@@ -8,6 +8,9 @@ const authMiddleware = {
     // Ưu tiên số 1: Lấy token từ Header (chuẩn Bearer Token mà Frontend đang gửi)
     if (req.headers.authorization && req.headers.authorization.startsWith("Bearer ")) {
       token = req.headers.authorization.split(" ")[1];
+      if (token === "null" || token === "undefined") {
+        token = null; // Đưa về null để bắt lỗi "No token found" bên dưới
+      }
     } 
     // Ưu tiên số 2: Lấy từ Cookie (dự phòng cho các request test bằng Postman/trình duyệt trực tiếp)
     else if (req.cookies && req.cookies.token) {

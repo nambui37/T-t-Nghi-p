@@ -4,6 +4,7 @@ const shiftController = require("../controllers/shiftController");
 const authMiddleware = require("../middlewares/authMiddleware");
 
 // Các route dành cho nhân viên (đã đăng nhập)
+router.get("/upcoming", authMiddleware.verifyToken, shiftController.getUpcoming);
 router.get("/available", authMiddleware.verifyToken, shiftController.getAvailable);
 router.post("/accept", authMiddleware.verifyToken, shiftController.accept);
 router.post("/check-in", authMiddleware.verifyToken, shiftController.checkIn);

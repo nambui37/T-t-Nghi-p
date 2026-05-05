@@ -4,7 +4,7 @@ const { sendEmail } = require("../utils/emailHelper");
 const appointmentController = {
   getAll: async (req, res) => {
     try {
-      const { page, limit, status, search } = req.query;
+      const { page, limit, status, search, dia_diem, ngay_trong_lich } = req.query;
       
       // Kiểm tra req.user
       if (!req.user) {
@@ -18,7 +18,14 @@ const appointmentController = {
       
       console.log("Fetching appointments for user:", { userId, role: req.user.role_id });
 
-      const result = await AppointmentModel.getAllAppointments(userId, { page, limit, status, search });
+      const result = await AppointmentModel.getAllAppointments(userId, {
+        page,
+        limit,
+        status,
+        search,
+        dia_diem,
+        ngay_trong_lich,
+      });
       res.status(200).json({ success: true, ...result });
     } catch (error) {
       console.error("Lỗi lấy danh sách lịch hẹn:", error);
@@ -28,7 +35,7 @@ const appointmentController = {
   create: async (req, res) => {
     try {
       // Lấy userId từ token nếu có (nhờ middleware verifyToken linh hoạt)
-      const userId = req.user ? req.user.id : null;
+      const userId = req.user ? req.user.id : (req.body.userId || null);
       
       // Gộp userId (có thể null) vào dữ liệu lịch hẹn
       const appointmentData = { ...req.body, userId };
@@ -67,6 +74,10 @@ const appointmentController = {
       res.status(200).json({ success: true, message: "Đã phân chia việc cho nhân viên" });
     } catch (error) {
       console.error("Lỗi phân chia việc:", error);
+      const msg = error.message || "";
+      if (msg.includes("Nhân viên đã có lịch trùng")) {
+        return res.status(400).json({ success: false, message: msg });
+      }
       res.status(500).json({ success: false, message: "Lỗi phân chia việc", error: error.message });
     }
   },

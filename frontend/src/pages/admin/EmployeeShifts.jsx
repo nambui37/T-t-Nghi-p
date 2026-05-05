@@ -1,15 +1,28 @@
 import React, { useState, useEffect } from "react";
 import { shiftAPI, careRecordAPI, incidentAPI } from "../../services/apiClient";
 import toast from "react-hot-toast";
-import { Link } from "react-router-dom";
+
+function formatWorkAddress(shift) {
+  if (!shift) return "";
+  if (shift.dia_diem === "tai_nha") {
+    const a = shift.customer_address?.trim();
+    return (
+      a ||
+      "Địa chỉ tại nhà — khách cung cấp khi đặt lịch (liên hệ SĐT phía dưới nếu thiếu)"
+    );
+  }
+  return "Tại trung tâm Mom&Baby";
+}
 
 const EmployeeShifts = () => {
   const [shifts, setShifts] = useState([]);
+  const [upcomingSchedule, setUpcomingSchedule] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckOutModalOpen, setIsCheckOutModalOpen] = useState(false);
   const [isCareRecordModalOpen, setIsCareRecordModalOpen] = useState(false);
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [currentShift, setCurrentShift] = useState(null);
+  const [detailShift, setDetailShift] = useState(null);
 
   // Care Record data
   const [careData, setCareData] = useState({
@@ -36,6 +49,14 @@ const EmployeeShifts = () => {
       if (response.data.success) {
         setShifts(response.data.data || []);
       }
+      try {
+        const up = await shiftAPI.getUpcoming({ days: 60 });
+        if (up.data.success) {
+          setUpcomingSchedule(up.data.data || []);
+        }
+      } catch (e) {
+        console.error("Error fetching upcoming schedule:", e);
+      }
     } catch (error) {
       console.error("Error fetching shifts:", error);
       toast.error(
@@ -47,12 +68,16 @@ const EmployeeShifts = () => {
     }
   };
 
+  const pingNotifications = () => {
+    window.dispatchEvent(new Event("admin-notifications-refresh"));
+  };
+
   const handleAccept = async (lichHenId) => {
     try {
       const response = await shiftAPI.accept(lichHenId);
       if (response.data.success) {
-        toast.success("Nhận ca thành công!");
         fetchShifts();
+        pingNotifications();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi nhận ca.");
@@ -87,8 +112,8 @@ const EmployeeShifts = () => {
 
       if (response.data.success) {
         toast.dismiss();
-        toast.success("Check-in thành công! Hãy chuẩn bị bắt đầu dịch vụ.");
         fetchShifts();
+        pingNotifications();
       }
     } catch (error) {
       toast.dismiss();
@@ -102,7 +127,6 @@ const EmployeeShifts = () => {
         caLamId: shift.ca_lam_id,
       });
       if (response.data.success) {
-        toast.success("Đã bắt đầu thực hiện dịch vụ.");
         setCurrentShift(shift);
         setIsCareRecordModalOpen(true);
         fetchShifts();
@@ -125,9 +149,7 @@ const EmployeeShifts = () => {
       });
 
       if (response.data.success) {
-        toast.success("Đã lưu nhật ký chăm sóc.");
         setIsCareRecordModalOpen(false);
-        // Không fetchShifts ở đây để giữ modal check-out sau này
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi lưu nhật ký.");
@@ -147,10 +169,10 @@ const EmployeeShifts = () => {
       });
 
       if (response.data.success) {
-        toast.success("Đã gửi báo cáo sự cố tới Admin.");
         setIsIncidentModalOpen(false);
         setIncidentData({ noi_dung: "", muc_do: "nhe" });
         fetchShifts();
+        pingNotifications();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi gửi báo cáo.");
@@ -165,7 +187,6 @@ const EmployeeShifts = () => {
       });
 
       if (response.data.success) {
-        toast.success("Ca làm việc đã hoàn thành. Cảm ơn bạn!");
         setIsCheckOutModalOpen(false);
         setCareData({
           noi_dung_cham_soc: "",
@@ -175,6 +196,7 @@ const EmployeeShifts = () => {
         });
         setCurrentShift(null);
         fetchShifts();
+        pingNotifications();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || "Lỗi khi kết thúc ca.");
@@ -219,6 +241,67 @@ const EmployeeShifts = () => {
         </div>
       </div>
 
+      {upcomingSchedule.length > 0 && (
+        <div className="bg-white rounded-3xl border border-indigo-100 p-6 shadow-sm">
+          <h3 className="font-bold text-gray-900 mb-1 flex items-center gap-2">
+            <span>📆</span> Lịch ca của bạn (các ngày sắp tới)
+          </h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Mỗi ngày trong gói dài ngày là một ca riêng — check-in / check-out theo từng ngày.
+          </p>
+          <div className="overflow-x-auto rounded-xl border border-gray-100">
+            <table className="w-full text-sm text-left">
+              <thead>
+                <tr className="bg-gray-50 text-gray-600 text-xs uppercase">
+                  <th className="px-4 py-3 font-semibold">Ngày làm</th>
+                  <th className="px-4 py-3 font-semibold">Dịch vụ</th>
+                  <th className="px-4 py-3 font-semibold">Địa điểm</th>
+                  <th className="px-4 py-3 font-semibold">Trạng thái ca</th>
+                </tr>
+              </thead>
+              <tbody>
+                {upcomingSchedule.slice(0, 40).map((row, idx) => {
+                  const st = getStatusLabel(row.status);
+                  return (
+                    <tr key={`${row.ca_lam_id}-${idx}`} className="border-t border-gray-50">
+                      <td className="px-4 py-2.5 whitespace-nowrap font-medium text-gray-800">
+                        {new Date(row.ngay_lam).toLocaleDateString("vi-VN", {
+                          weekday: "short",
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
+                      </td>
+                      <td className="px-4 py-2.5 text-gray-700">
+                        {row.service_name}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {row.dia_diem === "tai_nha" ? (
+                          <span className="text-orange-600 font-medium">Tại nhà</span>
+                        ) : (
+                          <span className="text-indigo-600 font-medium">Trung tâm</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${st.class}`}
+                        >
+                          {st.label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {upcomingSchedule.length > 40 && (
+            <p className="text-xs text-gray-400 mt-2">
+              Đang hiển thị 40 dòng đầu trong tổng {upcomingSchedule.length} ca.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoading ? (
           <div className="col-span-full py-20 text-center">
@@ -235,7 +318,7 @@ const EmployeeShifts = () => {
             const status = getStatusLabel(shift.ca_lam_status);
             return (
               <div
-                key={shift.id}
+                key={`${shift.id}-${shift.ca_lam_id ?? "open"}`}
                 className={`bg-white p-6 rounded-3xl shadow-sm border transition flex flex-col ${shift.ca_lam_status === "dang_thuc_hien" ? "border-indigo-500 ring-2 ring-indigo-50" : "border-gray-100 hover:shadow-md"}`}
               >
                 <div className="flex justify-between items-start mb-4">
@@ -259,12 +342,19 @@ const EmployeeShifts = () => {
                 <h3 className="text-lg font-bold text-gray-900 mb-1">
                   {shift.service_name}
                 </h3>
-                <p className="text-gray-500 text-xs mb-4">
+                <p className="text-gray-500 text-xs mb-1">
                   Khách hàng:{" "}
                   <span className="font-bold text-gray-700">
                     {shift.customer_name || shift.guest_name}
                   </span>
                 </p>
+                <button
+                  type="button"
+                  onClick={() => setDetailShift(shift)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-800 underline mb-3"
+                >
+                  Xem chi tiết lịch
+                </button>
 
                 <div className="space-y-3 mb-6 flex-1">
                   <div className="flex items-center text-sm text-gray-600 gap-2">
@@ -279,10 +369,10 @@ const EmployeeShifts = () => {
                         : "Tại trung tâm"}
                     </span>
                   </div>
-                  <div className="flex items-center text-sm text-gray-600 gap-2">
-                    <span>📍</span>
-                    <span className="truncate">
-                      {shift.customer_address || "Tại trung tâm Mom&Baby"}
+                  <div className="flex items-start text-sm text-gray-600 gap-2">
+                    <span className="shrink-0">📍</span>
+                    <span className="leading-snug">
+                      {formatWorkAddress(shift)}
                     </span>
                   </div>
                   <div className="flex items-center text-sm text-gray-600 gap-2">
@@ -295,6 +385,12 @@ const EmployeeShifts = () => {
                       )}
                     </span>
                   </div>
+                  {shift.ca_ngay_lam && (
+                    <div className="text-xs text-amber-800 bg-amber-50 px-2 py-1.5 rounded-lg font-semibold">
+                      Ca đang thao tác:{" "}
+                      {new Date(shift.ca_ngay_lam).toLocaleDateString("vi-VN")}
+                    </div>
+                  )}
                   <div className="flex items-center text-sm text-gray-600 gap-2">
                     <span>📞</span>
                     <a
@@ -561,6 +657,103 @@ const EmployeeShifts = () => {
                 Kết thúc ca
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {detailShift && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
+              Chi tiết lịch làm việc
+            </h3>
+            <p className="text-xs text-gray-400 mb-6">
+              Lịch #{detailShift.id} ·{" "}
+              {detailShift.dia_diem === "tai_nha" ? "Chăm sóc tại nhà" : "Tại trung tâm"}
+            </p>
+            <dl className="space-y-4 text-sm text-gray-800">
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Gói dịch vụ
+                </dt>
+                <dd className="font-bold text-base mt-0.5">
+                  {detailShift.service_name}
+                </dd>
+                {detailShift.gia != null && (
+                  <dd className="text-indigo-600 font-bold">
+                    {Number(detailShift.gia).toLocaleString("vi-VN")}đ
+                  </dd>
+                )}
+              </div>
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Khách hàng
+                </dt>
+                <dd className="mt-0.5">
+                  {detailShift.customer_name || detailShift.guest_name || "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Điện thoại
+                </dt>
+                <dd className="mt-0.5">
+                  {detailShift.customer_phone || detailShift.guest_phone || "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Địa điểm thực hiện
+                </dt>
+                <dd className="mt-0.5 leading-relaxed">
+                  {formatWorkAddress(detailShift)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Giai đoạn lịch
+                </dt>
+                <dd className="mt-0.5">
+                  {new Date(detailShift.ngay_bat_dau).toLocaleDateString("vi-VN")} —{" "}
+                  {new Date(detailShift.ngay_ket_thuc).toLocaleDateString("vi-VN")}
+                </dd>
+              </div>
+              {detailShift.ca_ngay_lam && (
+                <div>
+                  <dt className="text-gray-500 font-semibold text-xs uppercase">
+                    Ca đang thao tác (ngày)
+                  </dt>
+                  <dd className="mt-0.5 font-medium text-amber-800">
+                    {new Date(detailShift.ca_ngay_lam).toLocaleDateString("vi-VN")}
+                  </dd>
+                </div>
+              )}
+              <div>
+                <dt className="text-gray-500 font-semibold text-xs uppercase">
+                  Nhân sự
+                </dt>
+                <dd className="mt-0.5">
+                  {detailShift.current_staff_count}/2 người đã gán
+                </dd>
+              </div>
+              {detailShift.ghi_chu_nhan_vien && (
+                <div>
+                  <dt className="text-gray-500 font-semibold text-xs uppercase">
+                    Ghi chú từ lịch
+                  </dt>
+                  <dd className="mt-0.5 whitespace-pre-wrap text-gray-700">
+                    {detailShift.ghi_chu_nhan_vien}
+                  </dd>
+                </div>
+              )}
+            </dl>
+            <button
+              type="button"
+              onClick={() => setDetailShift(null)}
+              className="mt-8 w-full py-3 bg-gray-900 text-white rounded-2xl font-bold hover:bg-gray-800"
+            >
+              Đóng
+            </button>
           </div>
         </div>
       )}

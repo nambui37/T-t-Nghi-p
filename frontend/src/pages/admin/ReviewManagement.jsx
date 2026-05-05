@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { reviewAPI } from "../../services/apiClient";
 import toast from "react-hot-toast";
 
 const ReviewManagement = () => {
   const [reviews, setReviews] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -56,6 +59,27 @@ const ReviewManagement = () => {
     }
   };
 
+  const filteredReviews = useMemo(() => {
+    if (!debouncedSearch.trim()) return reviews;
+    const q = debouncedSearch.toLowerCase().trim();
+    return reviews.filter((r) => {
+      const name = (
+        r.customer_name ||
+        r.user_name ||
+        r.name ||
+        ""
+      ).toLowerCase();
+      const svc = (r.service_name || "").toLowerCase();
+      const cmt = (r.comment || "").toLowerCase();
+      return (
+        name.includes(q) ||
+        svc.includes(q) ||
+        cmt.includes(q) ||
+        String(r.id).includes(q)
+      );
+    });
+  }, [reviews, debouncedSearch]);
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -73,6 +97,16 @@ const ReviewManagement = () => {
         <p className="text-gray-500 text-sm">
           Xem và quản lý phản hồi từ khách hàng về các dịch vụ
         </p>
+      </div>
+
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+        <input
+          type="text"
+          placeholder="Tìm khách, dịch vụ, bình luận, mã..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="px-4 py-2 border border-gray-200 rounded-xl w-full max-w-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+        />
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -101,8 +135,8 @@ const ReviewManagement = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {reviews.length > 0 ? (
-                reviews.map((review) => (
+              {filteredReviews.length > 0 ? (
+                filteredReviews.map((review) => (
                   <tr
                     key={review.id}
                     className="hover:bg-gray-50/50 transition"
@@ -190,7 +224,9 @@ const ReviewManagement = () => {
                     colSpan="6"
                     className="px-6 py-12 text-center text-gray-500 italic"
                   >
-                    Chưa có đánh giá nào để hiển thị.
+                    {reviews.length === 0
+                      ? "Chưa có đánh giá nào để hiển thị."
+                      : "Không có đánh giá khớp bộ lọc."}
                   </td>
                 </tr>
               )}
