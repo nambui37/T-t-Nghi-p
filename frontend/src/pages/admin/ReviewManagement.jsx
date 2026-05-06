@@ -6,18 +6,22 @@ import toast from "react-hot-toast";
 const ReviewManagement = () => {
   const [reviews, setReviews] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [ratingFilter, setRatingFilter] = useState("");
   const debouncedSearch = useDebouncedValue(searchTerm, 350);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     fetchReviews();
-  }, []);
+  }, [debouncedSearch, ratingFilter]);
 
   const fetchReviews = async () => {
     try {
       setIsLoading(true);
-      console.log("Admin: Đang gọi API lấy danh sách đánh giá...");
-      const response = await reviewAPI.getAll();
+      const params = {};
+      if (debouncedSearch) params.search = debouncedSearch;
+      if (ratingFilter) params.rating = ratingFilter;
+
+      const response = await reviewAPI.getAll(params);
       console.log("Admin: Phản hồi từ API:", response);
       if (response?.data?.success) {
         setReviews(response.data.data || []);
@@ -59,28 +63,7 @@ const ReviewManagement = () => {
     }
   };
 
-  const filteredReviews = useMemo(() => {
-    if (!debouncedSearch.trim()) return reviews;
-    const q = debouncedSearch.toLowerCase().trim();
-    return reviews.filter((r) => {
-      const name = (
-        r.customer_name ||
-        r.user_name ||
-        r.name ||
-        ""
-      ).toLowerCase();
-      const svc = (r.service_name || "").toLowerCase();
-      const cmt = (r.comment || "").toLowerCase();
-      return (
-        name.includes(q) ||
-        svc.includes(q) ||
-        cmt.includes(q) ||
-        String(r.id).includes(q)
-      );
-    });
-  }, [reviews, debouncedSearch]);
-
-  if (isLoading) {
+  if (isLoading && reviews.length === 0) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600"></div>
@@ -99,17 +82,41 @@ const ReviewManagement = () => {
         </p>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-        <input
-          type="text"
-          placeholder="Tìm khách, dịch vụ, bình luận, mã..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="px-4 py-2 border border-gray-200 rounded-xl w-full max-w-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-        />
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="bg-white p-2 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2 w-full max-w-lg">
+          <span className="pl-3 text-gray-400">🔍</span>
+          <input
+            type="text"
+            placeholder="Tìm khách hàng, dịch vụ, nội dung bình luận..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-2 py-2 w-full outline-none text-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <span className="text-sm font-bold text-gray-500 whitespace-nowrap">Lọc theo sao:</span>
+          <select
+            value={ratingFilter}
+            onChange={(e) => setRatingFilter(e.target.value)}
+            className="px-4 py-3 bg-white border border-gray-100 rounded-2xl shadow-sm outline-none focus:ring-2 focus:ring-indigo-500 text-sm font-medium transition-all"
+          >
+            <option value="">Tất cả mức độ</option>
+            <option value="5">⭐⭐⭐⭐⭐ (5 sao)</option>
+            <option value="4">⭐⭐⭐⭐ (4 sao)</option>
+            <option value="3">⭐⭐⭐ (3 sao)</option>
+            <option value="2">⭐⭐ (2 sao)</option>
+            <option value="1">⭐ (1 sao)</option>
+          </select>
+        </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-[1px] z-10 flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-gray-50 border-b border-gray-100">
@@ -120,7 +127,7 @@ const ReviewManagement = () => {
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">
                   Dịch vụ
                 </th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">
+                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase text-center">
                   Đánh giá
                 </th>
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">
@@ -129,21 +136,21 @@ const ReviewManagement = () => {
                 <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">
                   Ngày gửi
                 </th>
-                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase">
+                <th className="px-6 py-4 text-xs font-bold text-gray-400 uppercase text-center">
                   Thao tác
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredReviews.length > 0 ? (
-                filteredReviews.map((review) => (
+              {reviews.length > 0 ? (
+                reviews.map((review) => (
                   <tr
                     key={review.id}
                     className="hover:bg-gray-50/50 transition"
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 overflow-hidden flex items-center justify-center text-indigo-500 text-xs font-bold">
+                        <div className="w-10 h-10 rounded-full bg-indigo-50 overflow-hidden flex items-center justify-center text-indigo-500 text-sm font-bold border border-indigo-100 shadow-sm">
                           {review.customer_avatar ? (
                             <img
                               src={
@@ -176,12 +183,12 @@ const ReviewManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-gray-600">
+                      <div className="text-gray-600 font-medium">
                         {review.service_name || "Dịch vụ đã xóa"}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex text-yellow-400">
+                    <td className="px-6 py-4 text-center">
+                      <div className="flex justify-center text-xs gap-0.5">
                         {[...Array(5)].map((_, i) => (
                           <span
                             key={i}
@@ -195,10 +202,13 @@ const ReviewManagement = () => {
                           </span>
                         ))}
                       </div>
+                      <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase">
+                        {review.rating} sao
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div
-                        className="text-gray-600 max-w-xs truncate"
+                        className="text-gray-600 max-w-xs text-sm leading-relaxed"
                         title={review.comment}
                       >
                         {review.comment}
@@ -207,10 +217,10 @@ const ReviewManagement = () => {
                     <td className="px-6 py-4 text-gray-500 text-sm">
                       {new Date(review.created_at).toLocaleDateString("vi-VN")}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-4 text-center">
                       <button
                         onClick={() => handleDelete(review.id)}
-                        className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition"
+                        className="w-9 h-9 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 shadow-sm border border-transparent hover:border-red-100"
                         title="Xóa đánh giá"
                       >
                         🗑️
@@ -222,11 +232,16 @@ const ReviewManagement = () => {
                 <tr>
                   <td
                     colSpan="6"
-                    className="px-6 py-12 text-center text-gray-500 italic"
+                    className="px-6 py-20 text-center text-gray-400"
                   >
-                    {reviews.length === 0
-                      ? "Chưa có đánh giá nào để hiển thị."
-                      : "Không có đánh giá khớp bộ lọc."}
+                    <div className="flex flex-col items-center gap-2">
+                      <span className="text-4xl">📄</span>
+                      <p className="italic">
+                        {searchTerm || ratingFilter
+                          ? "Không tìm thấy đánh giá nào khớp với bộ lọc."
+                          : "Hiện chưa có đánh giá nào từ khách hàng."}
+                      </p>
+                    </div>
                   </td>
                 </tr>
               )}

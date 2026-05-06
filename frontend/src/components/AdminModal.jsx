@@ -141,8 +141,12 @@ export const FormSelect = ({
       } ${props.disabled ? "opacity-60 cursor-not-allowed" : ""}`}
       {...props}
     >
-      {options.map((opt) => (
-        <option key={opt.value} value={opt.value} disabled={opt.disabled}>
+      {options.map((opt, idx) => (
+        <option
+          key={opt.value ?? `opt-${idx}`}
+          value={opt.value}
+          disabled={opt.disabled}
+        >
           {opt.label}
         </option>
       ))}

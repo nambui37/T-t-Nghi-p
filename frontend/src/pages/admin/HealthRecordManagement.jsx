@@ -251,11 +251,13 @@ const HealthRecordManagement = () => {
                     className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 transition outline-none"
                   >
                     <option value="">-- Chọn khách hàng --</option>
-                    {customers.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} ({c.phone})
-                      </option>
-                    ))}
+                    {customers
+                      .filter((c) => c.id !== null)
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.phone})
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}

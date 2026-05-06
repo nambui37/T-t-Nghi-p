@@ -127,6 +127,15 @@ const Appointments = () => {
       return toast.error("Vui lòng điền đầy đủ thông tin bắt buộc.");
     }
 
+    if (newAppointment.hinh_thuc_sinh !== "chua_sinh" && Number(newAppointment.so_luong_be) <= 0) {
+      return toast.error("Vui lòng nhập số lượng em bé (tối thiểu 1).");
+    }
+
+    if (newAppointment.hinh_thuc_sinh === "chua_sinh" && Number(newAppointment.so_luong_be) !== 0) {
+      // Đảm bảo sl bé luôn là 0 khi chưa sinh
+      newAppointment.so_luong_be = 0;
+    }
+
     try {
       const service = services.find(
         (s) => s.id === Number(newAppointment.goi_id),
@@ -414,10 +423,10 @@ const Appointments = () => {
                     </td>
                     <td className="px-6 py-4">
                       <p className="font-bold text-gray-900">
-                        {apt.customer_name || apt.guest_name}
+                        {apt.guest_name || apt.customer_name}
                       </p>
                       <p className="text-gray-500 text-xs">
-                        {apt.phone || apt.guest_phone}
+                        {apt.guest_phone || apt.phone}
                       </p>
                     </td>
                     <td className="px-6 py-4 text-gray-700">
@@ -444,41 +453,50 @@ const Appointments = () => {
                     </td>
                     {isAdmin && (
                       <td className="px-6 py-4 text-center">
-                        <div className="relative group">
-                          <button className="px-3 py-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition font-bold text-lg">
-                            ⋯
+                        <div className="relative group flex justify-center">
+                          <button className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-pink-600 hover:bg-pink-50 rounded-full transition-all duration-300">
+                            <span className="text-xl leading-none mb-2">...</span>
                           </button>
-                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                            <button
-                              onClick={() => {
-                                setSelectedApt(apt);
-                                setIsDetailModalOpen(true);
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 font-medium transition border-b border-gray-100 first:rounded-t-lg"
-                            >
-                              👁️ Xem chi tiết
-                            </button>
-                            <button
-                              onClick={() => openStatusModal(apt)}
-                              className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 font-medium transition border-b border-gray-100"
-                            >
-                              📝 Cập nhật trạng thái
-                            </button>
-                            <button
-                              onClick={() => {
-                                setSelectedApt(apt);
-                                setAssignData({
-                                  nhan_vien_id:
-                                    apt.nhan_vien_id ||
-                                    apt.staff_list?.[0]?.id ||
-                                    "",
-                                });
-                                setIsAssignModalOpen(true);
-                              }}
-                              className="w-full text-left px-4 py-2.5 text-sm text-indigo-600 hover:bg-indigo-50 font-medium transition last:rounded-b-lg"
-                            >
-                              👨‍💼 Phân công nhân viên
-                            </button>
+                          
+                          {/* Dropdown Menu */}
+                          <div className="absolute right-full mr-2 top-0 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-[100] transform scale-95 group-hover:scale-100 origin-right">
+                            <div className="p-2 space-y-1">
+                              <button
+                                onClick={() => {
+                                  setSelectedApt(apt);
+                                  setIsDetailModalOpen(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-pink-50 hover:text-pink-600 rounded-xl transition-all duration-200 font-medium group/item"
+                              >
+                                <span className="p-1.5 bg-gray-50 group-hover/item:bg-pink-100 rounded-lg transition-colors">👁️</span>
+                                Xem chi tiết
+                              </button>
+                              
+                              <button
+                                onClick={() => openStatusModal(apt)}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-200 font-medium group/item"
+                              >
+                                <span className="p-1.5 bg-gray-50 group-hover/item:bg-blue-100 rounded-lg transition-colors">📝</span>
+                                Cập nhật trạng thái
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  setSelectedApt(apt);
+                                  setAssignData({
+                                    nhan_vien_id:
+                                      apt.nhan_vien_id ||
+                                      apt.staff_list?.[0]?.id ||
+                                      "",
+                                  });
+                                  setIsAssignModalOpen(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all duration-200 font-medium group/item"
+                              >
+                                <span className="p-1.5 bg-gray-50 group-hover/item:bg-indigo-100 rounded-lg transition-colors">👨‍💼</span>
+                                Phân công nhân viên
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -520,57 +538,96 @@ const Appointments = () => {
         onClose={() => setIsModalOpen(false)}
         title="Tạo lịch hẹn mới"
         onConfirm={handleAddAppointment}
-        size="3xl"
+        size="4xl"
       >
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
-          <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-            <h3 className="font-bold text-pink-600 mb-4 border-b border-pink-200 pb-2">
+        <div className="space-y-6 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar p-2">
+          {/* Section 1: Khách hàng & Dịch vụ */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+            <div className="absolute top-0 left-0 w-1 bg-pink-500 h-full"></div>
+            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="p-2 bg-pink-100 text-pink-600 rounded-xl">👤</span>
               1. Thông tin Khách hàng & Dịch vụ
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="md:col-span-1">
+                <FormSelect
+                  label="Khách hàng hệ thống"
+                  value={newAppointment.user_id}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      user_id: e.target.value,
+                      guest_name: "",
+                      guest_phone: "",
+                    })
+                  }
+                  options={[
+                    { value: "", label: "-- Chọn khách hàng --" },
+                    ...customers
+                      .filter((c) => c.id !== null) // Chỉ hiển thị khách đã có tài khoản hệ thống
+                      .map((c) => ({
+                        value: c.id,
+                        label: `${c.name} (${c.phone})`,
+                      })),
+                  ]}
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <FormInput
+                  label="Tên khách vãng lai"
+                  disabled={!!newAppointment.user_id}
+                  required={!newAppointment.user_id}
+                  value={newAppointment.guest_name}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      guest_name: e.target.value,
+                      user_id: undefined, // Sử dụng undefined thay vì "" để không gửi lên server
+                    })
+                  }
+                  placeholder={newAppointment.user_id ? "Đã chọn khách hệ thống" : "Nhập tên khách hàng"}
+                />
+              </div>
+
+              <div className="md:col-span-1">
+                <FormInput
+                  label="Số điện thoại khách"
+                  type="tel"
+                  required={!newAppointment.user_id}
+                  disabled={!!newAppointment.user_id}
+                  value={newAppointment.guest_phone}
+                  onChange={(e) =>
+                    setNewAppointment({
+                      ...newAppointment,
+                      guest_phone: e.target.value,
+                      user_id: undefined, // Sử dụng undefined thay vì "" để không gửi lên server
+                    })
+                  }
+                  placeholder={newAppointment.user_id ? "Đã chọn khách hệ thống" : "Nhập SĐT khách hàng"}
+                />
+              </div>
+
               <FormSelect
-                label="Khách hàng hệ thống"
-                value={newAppointment.user_id}
+                label="Dịch vụ đăng ký"
+                required
+                value={newAppointment.goi_id}
                 onChange={(e) =>
                   setNewAppointment({
                     ...newAppointment,
-                    user_id: e.target.value,
-                    guest_name: "",
-                    guest_phone: "",
+                    goi_id: e.target.value,
                   })
                 }
                 options={[
-                  { value: "", label: "-- Chọn khách hàng --" },
-                  ...customers.map((c) => ({
-                    value: c.id,
-                    label: `${c.name} (${c.phone})`,
+                  { value: "", label: "-- Chọn dịch vụ --" },
+                  ...services.map((s) => ({
+                    value: s.id,
+                    label: `${s.name} - ${Number(s.gia).toLocaleString()}đ`,
                   })),
                 ]}
               />
-              <FormInput
-                label="Tên khách vãng lai"
-                disabled={!!newAppointment.user_id}
-                value={newAppointment.guest_name}
-                onChange={(e) =>
-                  setNewAppointment({
-                    ...newAppointment,
-                    guest_name: e.target.value,
-                  })
-                }
-                placeholder="Nếu chưa có tài khoản"
-              />
-              <FormInput
-                label="Số điện thoại khách"
-                type="tel"
-                disabled={!!newAppointment.user_id}
-                value={newAppointment.guest_phone}
-                onChange={(e) =>
-                  setNewAppointment({
-                    ...newAppointment,
-                    guest_phone: e.target.value,
-                  })
-                }
-              />
+
               <FormSelect
                 label="Chuyên viên thực hiện"
                 value={newAppointment.nhan_vien_id}
@@ -590,24 +647,50 @@ const Appointments = () => {
                     })),
                 ]}
               />
+
               <FormSelect
-                label="Dịch vụ"
-                required
-                value={newAppointment.goi_id}
+                label="Địa điểm"
+                value={newAppointment.dia_diem}
                 onChange={(e) =>
                   setNewAppointment({
                     ...newAppointment,
-                    goi_id: e.target.value,
+                    dia_diem: e.target.value,
                   })
                 }
                 options={[
-                  { value: "", label: "-- Chọn dịch vụ --" },
-                  ...services.map((s) => ({
-                    value: s.id,
-                    label: `${s.name} - ${Number(s.gia).toLocaleString()}đ`,
-                  })),
+                  { value: "tai_nha", label: "🏠 Tại nhà" },
+                  { value: "trung_tam", label: "🏢 Tại trung tâm" },
                 ]}
               />
+
+              {newAppointment.dia_diem === "tai_nha" && (
+                <div className="md:col-span-3">
+                  <FormInput
+                    label="Địa chỉ cụ thể"
+                    required
+                    placeholder="Số nhà, tên đường, phường/xã, quận/huyện..."
+                    value={newAppointment.dia_chi_cu_the}
+                    onChange={(e) =>
+                      setNewAppointment({
+                        ...newAppointment,
+                        dia_chi_cu_the: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Section 2: Thời gian & Loại phòng */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+            <div className="absolute top-0 left-0 w-1 bg-blue-500 h-full"></div>
+            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="p-2 bg-blue-100 text-blue-600 rounded-xl">📅</span>
+              2. Thời gian & Loại hình
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <FormInput
                 label="Ngày bắt đầu"
                 type="date"
@@ -635,20 +718,6 @@ const Appointments = () => {
                 }
               />
               <FormSelect
-                label="Địa điểm"
-                value={newAppointment.dia_diem}
-                onChange={(e) =>
-                  setNewAppointment({
-                    ...newAppointment,
-                    dia_diem: e.target.value,
-                  })
-                }
-                options={[
-                  { value: "tai_nha", label: "Tại nhà" },
-                  { value: "trung_tam", label: "Tại trung tâm" },
-                ]}
-              />
-              <FormSelect
                 label="Loại lịch"
                 value={newAppointment.loai_lich}
                 onChange={(e) =>
@@ -664,7 +733,8 @@ const Appointments = () => {
               />
               <FormSelect
                 label="Loại phòng"
-                value={newAppointment.loai_phong}
+                disabled={newAppointment.dia_diem === "tai_nha"}
+                value={newAppointment.dia_diem === "tai_nha" ? "" : newAppointment.loai_phong}
                 onChange={(e) =>
                   setNewAppointment({
                     ...newAppointment,
@@ -672,6 +742,7 @@ const Appointments = () => {
                   })
                 }
                 options={[
+                  { value: "", label: "-- Không chọn --" },
                   { value: "thuong", label: "Phòng thường" },
                   { value: "vip", label: "Phòng VIP" },
                 ]}
@@ -679,11 +750,15 @@ const Appointments = () => {
             </div>
           </div>
 
-          <div className="bg-pink-50/50 p-4 rounded-xl border border-pink-100">
-            <h3 className="font-bold text-pink-600 mb-4 border-b border-pink-200 pb-2">
-              2. Thông tin Mẹ & Bé (Tùy chọn)
+          {/* Section 3: Thông tin Mẹ & Bé */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+            <div className="absolute top-0 left-0 w-1 bg-purple-500 h-full"></div>
+            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="p-2 bg-purple-100 text-purple-600 rounded-xl">👶</span>
+              3. Thông tin Mẹ & Bé (Tùy chọn)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <FormInput
                 label="Ngày sinh bé"
                 type="date"
@@ -698,31 +773,43 @@ const Appointments = () => {
               <FormSelect
                 label="Hình thức sinh"
                 value={newAppointment.hinh_thuc_sinh}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const val = e.target.value;
                   setNewAppointment({
                     ...newAppointment,
-                    hinh_thuc_sinh: e.target.value,
-                  })
-                }
+                    hinh_thuc_sinh: val,
+                    // Nếu chọn chưa sinh thì mặc định số lượng bé = 0, ngược lại nếu đang là 0 thì set lên 1
+                    so_luong_be:
+                      val === "chua_sinh"
+                        ? 0
+                        : newAppointment.so_luong_be === 0
+                          ? 1
+                          : newAppointment.so_luong_be,
+                  });
+                }}
                 options={[
                   { value: "sinh_thuong", label: "Sinh thường" },
                   { value: "sinh_mo", label: "Sinh mổ" },
+                  { value: "chua_sinh", label: "Chưa sinh" },
                 ]}
               />
               <FormInput
                 label="Số lượng bé"
                 type="number"
-                min="1"
-                value={newAppointment.so_luong_be}
-                onChange={(e) =>
+                disabled={newAppointment.hinh_thuc_sinh === "chua_sinh"}
+                min={newAppointment.hinh_thuc_sinh === "chua_sinh" ? 0 : 1}
+                max={newAppointment.hinh_thuc_sinh === "chua_sinh" ? 0 : 10}
+                value={newAppointment.hinh_thuc_sinh === "chua_sinh" ? 0 : newAppointment.so_luong_be}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
                   setNewAppointment({
                     ...newAppointment,
-                    so_luong_be: e.target.value,
+                    so_luong_be: isNaN(val) ? 0 : val,
                   })
-                }
+                }}
               />
               <FormInput
-                label="Cân nặng bé (kg)"
+                label="Cân nặng (kg)"
                 value={newAppointment.can_nang_be}
                 placeholder="VD: 3.2"
                 onChange={(e) =>
@@ -735,6 +822,7 @@ const Appointments = () => {
               <div className="md:col-span-2">
                 <FormInput
                   label="Tình trạng mẹ"
+                  placeholder="VD: Mẹ khỏe, vết mổ khô..."
                   value={newAppointment.tinh_trang_me}
                   onChange={(e) =>
                     setNewAppointment({
@@ -747,6 +835,7 @@ const Appointments = () => {
               <div className="md:col-span-2">
                 <FormInput
                   label="Ghi chú về bé"
+                  placeholder="VD: Bé hay quấy khóc ban đêm..."
                   value={newAppointment.ghi_chu_be}
                   onChange={(e) =>
                     setNewAppointment({
@@ -759,11 +848,15 @@ const Appointments = () => {
             </div>
           </div>
 
-          <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-            <h3 className="font-bold text-blue-600 mb-4 border-b border-blue-200 pb-2">
-              3. Thanh toán
+          {/* Section 4: Thanh toán */}
+          <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden group transition-all hover:shadow-md">
+            <div className="absolute top-0 left-0 w-1 bg-green-500 h-full"></div>
+            <h3 className="font-bold text-gray-900 mb-6 flex items-center gap-3">
+              <span className="p-2 bg-green-100 text-green-600 rounded-xl">💰</span>
+              4. Thanh toán
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <FormSelect
                 label="Hình thức thanh toán"
                 value={newAppointment.hinh_thuc_thanh_toan}
@@ -774,8 +867,9 @@ const Appointments = () => {
                   })
                 }
                 options={[
-                  { value: "tien_mat", label: "Tiền mặt" },
-                  { value: "vnpay", label: "VNPay" },
+                  { value: "tien_mat", label: "💵 Tiền mặt" },
+                  { value: "vnpay", label: "💳 VNPay" },
+                  { value: "momo", label: "📱 MoMo" },
                 ]}
               />
               <FormSelect
@@ -788,25 +882,22 @@ const Appointments = () => {
                   })
                 }
                 options={[
-                  { value: "chua_thanh_toan", label: "Chưa thanh toán" },
-                  { value: "da_coc_15", label: "Đã cọc 15%" },
-                  { value: "da_thanh_toan_het", label: "Đã tất toán" },
+                  { value: "chua_thanh_toan", label: "❌ Chưa thanh toán" },
+                  { value: "da_coc_15", label: "📑 Đã cọc 15%" },
+                  { value: "da_thanh_toan_het", label: "✅ Đã tất toán" },
                 ]}
               />
-              <div className="md:col-span-2">
-                <FormInput
-                  label="Tiền cọc (VNĐ)"
-                  type="number"
-                  min="0"
-                  value={newAppointment.dat_coc}
-                  onChange={(e) =>
-                    setNewAppointment({
-                      ...newAppointment,
-                      dat_coc: e.target.value,
-                    })
-                  }
-                />
-              </div>
+              <FormInput
+                label="Số tiền đặt cọc (VNĐ)"
+                type="number"
+                value={newAppointment.dat_coc}
+                onChange={(e) =>
+                  setNewAppointment({
+                    ...newAppointment,
+                    dat_coc: e.target.value,
+                  })
+                }
+              />
             </div>
           </div>
         </div>
@@ -978,7 +1069,7 @@ const Appointments = () => {
                     <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition">
                       <span className="text-gray-500 font-medium">Họ tên:</span>
                       <span className="font-bold text-gray-900">
-                        {selectedApt.customer_name || selectedApt.guest_name}
+                        {selectedApt.guest_name || selectedApt.customer_name || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition">
@@ -986,7 +1077,7 @@ const Appointments = () => {
                         Số điện thoại:
                       </span>
                       <span className="font-bold text-gray-900">
-                        {selectedApt.phone || selectedApt.guest_phone}
+                        {selectedApt.guest_phone || selectedApt.phone || "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition">
@@ -999,6 +1090,16 @@ const Appointments = () => {
                           : "Tại trung tâm"}
                       </span>
                     </div>
+                    {selectedApt.dia_diem === "trung_tam" && (
+                      <div className="flex justify-between items-center p-2 rounded-lg hover:bg-gray-50 transition">
+                        <span className="text-gray-500 font-medium">
+                          Loại phòng:
+                        </span>
+                        <span className="font-bold text-indigo-600 uppercase bg-indigo-50 px-2 py-0.5 rounded">
+                          {selectedApt.loai_phong === "vip" ? "💎 VIP" : "🏠 Thường"}
+                        </span>
+                      </div>
+                    )}
                     {selectedApt.dia_diem === "tai_nha" && (
                       <div className="flex flex-col p-2 bg-blue-50/50 rounded-lg border border-blue-50/50">
                         <span className="text-gray-500 font-medium text-xs mb-1">
@@ -1135,7 +1236,9 @@ const Appointments = () => {
                       <span className="font-bold text-gray-900 bg-pink-100 px-2 py-0.5 rounded text-xs">
                         {selectedApt.hinh_thuc_sinh === "sinh_thuong"
                           ? "Sinh thường"
-                          : "Sinh mổ"}
+                          : selectedApt.hinh_thuc_sinh === "sinh_mo"
+                            ? "Sinh mổ"
+                            : "Chưa sinh"}
                       </span>
                     </div>
                     <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
@@ -1143,7 +1246,7 @@ const Appointments = () => {
                         Số lượng bé:
                       </span>
                       <span className="font-bold text-gray-900">
-                        {selectedApt.so_luong_be || 1} bé
+                        {selectedApt.so_luong_be ?? 0} bé
                       </span>
                     </div>
                     <div className="flex justify-between items-start p-2 bg-white/60 rounded-lg">

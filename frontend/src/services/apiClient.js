@@ -208,7 +208,7 @@ export const cmsAPI = {
 export const reviewAPI = {
   create: (data) => apiClient.post("/reviews", data),
   getByService: (goiId) => apiClient.get(`/reviews/service/${goiId}`),
-  getAll: () => apiClient.get("/reviews/all"),
+  getAll: (params) => apiClient.get("/reviews/all", { params }),
   delete: (id) => apiClient.delete(`/reviews/${id}`),
 };
 

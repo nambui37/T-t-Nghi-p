@@ -34,11 +34,30 @@ const appointmentController = {
   },
   create: async (req, res) => {
     try {
-      // Lấy userId từ token nếu có (nhờ middleware verifyToken linh hoạt)
-      const userId = req.user ? req.user.id : (req.body.userId || null);
+      // Logic xác định userId:
+      // 1. Nếu là Admin/Nhân viên tạo lịch: 
+      //    - Nếu chọn khách hàng hệ thống: dùng user_id từ body.
+      //    - Nếu là khách vãng lai: dùng null.
+      // 2. Nếu là Khách hàng tự đặt (qua app/web):
+      //    - Dùng ID của chính họ từ token (req.user.id).
       
-      // Gộp userId (có thể null) vào dữ liệu lịch hẹn
+      const isAdminOrStaff = req.user && [1, 2, 4, 5, 6, 7, 8].includes(Number(req.user.role_id));
+      let userId = null;
+
+      if (isAdminOrStaff) {
+        // Admin tạo: lấy user_id từ body, nếu không có (khách vãng lai) thì để null
+        userId = req.body.user_id || null;
+      } else if (req.user) {
+        // Khách hàng tự đặt: lấy ID từ token
+        userId = req.user.id;
+      } else {
+        // Trường hợp không đăng nhập (nếu có cho phép đặt ẩn danh)
+        userId = req.body.user_id || null;
+      }
+      
+      // Gộp userId vào dữ liệu lịch hẹn
       const appointmentData = { ...req.body, userId };
+      console.log("Creating appointment with userId:", userId, "Guest:", req.body.guest_name);
       
       const newId = await AppointmentModel.createAppointment(appointmentData);
       res.status(201).json({ success: true, message: "Đặt lịch thành công", data: { id: newId } });

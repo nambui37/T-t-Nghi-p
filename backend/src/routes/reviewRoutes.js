@@ -93,16 +93,33 @@ router.put("/:id", authMiddleware.verifyToken, async (req, res) => {
 // Admin Route: Lấy tất cả đánh giá
 router.get("/all", authMiddleware.verifyAdmin, async (req, res) => {
   try {
-    const [rows] = await db.query(
-      `SELECT dg.id, dg.rating, dg.comment, dg.created_at, 
-              COALESCE(u.name, 'Khách hàng ẩn danh') as customer_name, 
-              u.avatar as customer_avatar,
-              COALESCE(g.name, 'Dịch vụ đã xóa') as service_name
-       FROM danh_gia dg
-       LEFT JOIN users u ON dg.user_id = u.id
-       LEFT JOIN goi_dich_vu g ON dg.goi_id = g.id
-       ORDER BY dg.created_at DESC`
-    );
+    const { search, rating } = req.query;
+    let query = `
+      SELECT dg.id, dg.rating, dg.comment, dg.created_at, 
+             COALESCE(u.name, 'Khách hàng ẩn danh') as customer_name, 
+             u.avatar as customer_avatar,
+             COALESCE(g.name, 'Dịch vụ đã xóa') as service_name
+      FROM danh_gia dg
+      LEFT JOIN users u ON dg.user_id = u.id
+      LEFT JOIN goi_dich_vu g ON dg.goi_id = g.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (rating) {
+      query += ` AND dg.rating = ?`;
+      params.push(rating);
+    }
+
+    if (search) {
+      query += ` AND (u.name LIKE ? OR g.name LIKE ? OR dg.comment LIKE ?)`;
+      const searchParam = `%${search}%`;
+      params.push(searchParam, searchParam, searchParam);
+    }
+
+    query += ` ORDER BY dg.created_at DESC`;
+
+    const [rows] = await db.query(query, params);
     
     // Xử lý đường dẫn avatar cho admin
     const processedRows = rows.map(row => {

@@ -114,12 +114,13 @@ const AppointmentModel = {
         lh.id, lh.khach_hang_id, ${supportPrimaryEmployee ? "lh.nhan_vien_id" : "NULL AS nhan_vien_id"}, lh.goi_id, 
         lh.ngay_bat_dau, lh.ngay_ket_thuc, lh.loai_lich, lh.dia_diem, lh.loai_phong,
         lh.status, lh.trang_thai_thanh_toan, lh.hinh_thuc_thanh_toan,
-        lh.ngay_sinh_be, lh.hinh_thuc_sinh, lh.tinh_trang_me, lh.can_nang_be, lh.ghi_chu_be,
+        lh.ngay_sinh_be, lh.hinh_thuc_sinh, lh.tinh_trang_me, lh.can_nang_be, lh.ghi_chu_be, lh.so_luong_be,
         lh.dia_chi_cu_the, lh.toa_do, lh.created_at, lh.ghi_chu_nhan_vien, lh.dat_coc,
         lh.ngay_bat_dau_thuc_te, lh.ngay_ket_thuc_thuc_te,
+        lh.guest_name, lh.guest_phone,
         kh.dia_chi AS khach_hang_dia_chi, 
-        COALESCE(u.name, lh.guest_name) AS customer_name, 
-        COALESCE(u.phone, lh.guest_phone) AS phone, 
+        COALESCE(lh.guest_name, u.name) AS customer_name, 
+        COALESCE(lh.guest_phone, u.phone) AS phone, 
         gdv.name AS service_name, gdv.gia,
         ${
           supportPrimaryEmployee
@@ -231,7 +232,7 @@ const AppointmentModel = {
   
       let khach_hang_id = null;
   
-      // 1. Nếu có userId, tìm khach_hang_id tương ứng (hoặc tạo mới nếu chưa có)
+      // 1. Nếu có userId (Khách hệ thống), tìm hoặc tạo khach_hang_id tương ứng
       if (userId) {
         const [customerRows] = await db.query("SELECT id FROM khach_hang WHERE user_id = ?", [userId]);
         if (customerRows.length > 0) {
@@ -245,6 +246,8 @@ const AppointmentModel = {
           khach_hang_id = insertResult.insertId;
         }
       }
+      // Nếu không có userId (Khách vãng lai), khach_hang_id sẽ giữ nguyên là null.
+      // Thông tin khách vãng lai sẽ chỉ được lưu tại các cột guest_name, guest_phone trong bảng lich_hen.
 
       // Đảm bảo tiền cọc = 0 nếu phương thức là tiền mặt hoặc tại quầy
       let actualDatCoc = parseFloat(dat_coc) || 0;
@@ -271,7 +274,7 @@ const AppointmentModel = {
         ngay_sinh_be || null,
         hinh_thuc_sinh || null,
         tinh_trang_me || null,
-        so_luong_be || 1,
+        so_luong_be ?? 1,
         can_nang_be || null,
         ghi_chu_be || null,
         dia_chi_cu_the || null,
